@@ -12,6 +12,7 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -25,6 +26,8 @@ METADATA_FILENAME = "luogu_problems.json"
 METADATA_PATH = Path(__file__).with_name(METADATA_FILENAME)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROBLEM_ROOT = PROJECT_ROOT / "problem"
+JUDGE_LOG_FILENAME = "judge_log.jsonl"
+JUDGE_LOG_PATH = Path(__file__).with_name(JUDGE_LOG_FILENAME)
 
 
 @dataclass
@@ -46,6 +49,33 @@ class TestResult:
     stdout: str
     stderr: str
     message: str
+
+
+def now_utc_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def truncate_text(text: str, limit: int = 2000) -> str:
+    if len(text) <= limit:
+        return text
+    remainder = len(text) - limit
+    return f"{text[:limit]}... [truncated {remainder} chars]"
+
+
+def append_judge_log(entry: Dict[str, object], path: Path = JUDGE_LOG_PATH) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
+
+
+def relative_to_base(path: Path, base: Path) -> Optional[str]:
+    try:
+        return str(path.resolve().relative_to(base.resolve()))
+    except ValueError:
+        return None
 
 
 def find_source(problem_dir: Path, preferred: str) -> Path:
@@ -370,11 +400,39 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     print(f"Judging {pid_label} @ {problem_dir}")
 
+    log_entry: Dict[str, object] = {
+        "timestamp": now_utc_iso(),
+        "pid": pid_label,
+        "base_dir": str(base_dir),
+        "directory": str(problem_dir),
+        "relative_directory": relative_to_base(problem_dir, base_dir),
+        "args": {
+            "std": args.std,
+            "timeout": args.timeout,
+            "source": args.source,
+            "cflags": args.cflags,
+        },
+    }
+
     try:
         source_file = find_source(problem_dir, args.source)
     except FileNotFoundError as exc:
         print(exc, file=sys.stderr)
+        log_entry.update(
+            {
+                "status": "NO_SOURCE",
+                "success": False,
+                "tests": [],
+                "test_count": 0,
+                "pass_count": 0,
+                "compile": {"success": False, "message": str(exc)},
+                "duration_seconds": 0.0,
+            }
+        )
+        append_judge_log(log_entry)
         return 1
+
+    log_entry["source"] = str(source_file)
 
     metadata_timeout: Optional[float] = None
     metadata_memory: Optional[int] = None
@@ -389,6 +447,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         mem_desc = problem_info.get("memory_limit_human") or (f"{metadata_memory / 1024:.2f}MB" if metadata_memory else "未知")
         pid_display = problem_info.get("pid") or pid_label
         print(f"{pid_display} 限制: 时间 ≤ {time_desc}, 内存 ≤ {mem_desc}")
+        log_entry["metadata"] = {
+            "pid": pid_display,
+            "time_limit_ms": time_limit_ms,
+            "memory_limit_kb": memory_limit_kb,
+        }
 
     effective_timeout = args.timeout if args.timeout is not None else metadata_timeout
     if effective_timeout is not None and args.timeout is None and metadata_timeout is not None:
@@ -397,6 +460,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     tests = list_tests(problem_dir)
     if not tests:
         print(f"No .in files found in {problem_dir}")
+    log_entry["test_files"] = [input_file.name for input_file, _ in tests]
+
+    total_tests = len(tests)
+    tests_log: List[Dict[str, object]] = []
+    executed_tests = 0
+    pass_count = 0
+    status = "UNKNOWN"
+    exit_code = 1
+    compile_data: Dict[str, object] = {}
+    start_overall = time.perf_counter()
 
     with tempfile.TemporaryDirectory(prefix="judge_build_") as build_dir:
         binary_path = Path(build_dir) / "solution"
@@ -406,27 +479,69 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print(compile_result.stdout)
         if compile_result.stderr:
             print(compile_result.stderr, file=sys.stderr)
-        if not compile_result.success or compile_result.binary is None:
-            return 1
 
-        overall_success = True
-        for input_file, expected_file in tests:
-            result = run_single_test(
-                compile_result.binary,
-                input_file,
-                expected_file,
-                effective_timeout,
-            )
-            print(format_result(result, metadata_timeout, metadata_memory))
-            if result.status == "WA":
-                actual_output = result.stdout.rstrip("\n")
-                print("程序输出:")
-                print(actual_output if actual_output else "<空输出>")
-            if result.status != "AC":
-                overall_success = False
-                if result.stderr:
-                    print("stderr:\n" + result.stderr, file=sys.stderr)
-        return 0 if overall_success else 2
+        compile_data = {
+            "success": compile_result.success,
+            "elapsed": compile_result.elapsed,
+            "stdout": truncate_text(compile_result.stdout),
+            "stderr": truncate_text(compile_result.stderr),
+        }
+
+        if not compile_result.success or compile_result.binary is None:
+            status = "COMPILE_ERROR"
+            exit_code = 1
+        else:
+            overall_success = True
+            for input_file, expected_file in tests:
+                result = run_single_test(
+                    compile_result.binary,
+                    input_file,
+                    expected_file,
+                    effective_timeout,
+                )
+                executed_tests += 1
+                print(format_result(result, metadata_timeout, metadata_memory))
+                if result.status == "WA":
+                    actual_output = result.stdout.rstrip("\n")
+                    print("程序输出:")
+                    print(actual_output if actual_output else "<空输出>")
+                if result.status != "AC":
+                    overall_success = False
+                    if result.stderr:
+                        print("stderr:\n" + result.stderr, file=sys.stderr)
+                else:
+                    pass_count += 1
+
+                tests_log.append(
+                    {
+                        "name": result.name,
+                        "status": result.status,
+                        "time_ms": result.time_seconds * 1000 if result.time_seconds is not None else None,
+                        "memory_kb": result.memory_kb,
+                        "message": result.message.splitlines()[0] if result.message else "",
+                    }
+                )
+
+            status = "AC" if overall_success else "FAILED"
+            exit_code = 0 if overall_success else 2
+
+    duration_seconds = time.perf_counter() - start_overall
+
+    log_entry.update(
+        {
+            "status": status,
+            "success": status == "AC",
+            "compile": compile_data,
+            "tests": tests_log,
+            "test_count": total_tests,
+            "executed_tests": executed_tests,
+            "pass_count": pass_count,
+            "duration_seconds": duration_seconds,
+            "timeout_seconds": effective_timeout,
+        }
+    )
+    append_judge_log(log_entry)
+    return exit_code
 
 
 if __name__ == "__main__":

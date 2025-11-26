@@ -7,7 +7,7 @@ import argparse
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -41,6 +41,8 @@ DIFFICULTY_LABELS = {
 
 CATALOG_FILENAME = "luogu_catalog.html"
 CATALOG_PATH = Path(__file__).with_name(CATALOG_FILENAME)
+JUDGE_LOG_FILENAME = "judge_log.jsonl"
+JUDGE_LOG_PATH = Path(__file__).with_name(JUDGE_LOG_FILENAME)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROBLEM_ROOT = PROJECT_ROOT / "problem"
@@ -62,7 +64,7 @@ class TagNameParser(HTMLParser):
         href = dict(attrs).get("href")
         if not href:
             return
-        match = re.search(r"/problem/list\\?tag=(\\d+)", href)
+        match = re.search(r"/problem/list\?tag=(\d+)", href)
         if not match:
             return
         tag_id = match.group(1)
@@ -110,6 +112,60 @@ def load_metadata(path: Path = METADATA_PATH) -> Dict[str, dict]:
 def save_metadata(payload: Dict[str, dict], path: Path = METADATA_PATH) -> None:
     serialized = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
     path.write_text(serialized + "\n", encoding="utf-8")
+
+
+def load_judge_history(path: Path = JUDGE_LOG_PATH, limit: int = 10) -> Dict[str, List[dict]]:
+  history: Dict[str, List[dict]] = {}
+  if not path.is_file():
+    return history
+  try:
+    with path.open("r", encoding="utf-8") as handle:
+      for line in handle:
+        record_raw = line.strip()
+        if not record_raw:
+          continue
+        try:
+          record = json.loads(record_raw)
+        except json.JSONDecodeError:
+          continue
+        pid = record.get("pid") or record.get("directory")
+        if not isinstance(pid, str) or not pid:
+          continue
+        history.setdefault(pid, []).append(record)
+  except OSError:
+    return history
+
+  formatted: Dict[str, List[dict]] = {}
+  for pid, entries in history.items():
+    sorted_entries = sorted(entries, key=lambda item: item.get("timestamp") or "", reverse=True)[:limit]
+    compact_entries: List[dict] = []
+    for entry in sorted_entries:
+      compile_block = entry.get("compile") or {}
+      compact_entry = {
+        "timestamp": entry.get("timestamp"),
+        "status": entry.get("status"),
+        "success": entry.get("success"),
+        "test_count": entry.get("test_count"),
+        "pass_count": entry.get("pass_count"),
+        "duration_seconds": entry.get("duration_seconds"),
+        "compile_success": compile_block.get("success"),
+        "compile_elapsed": compile_block.get("elapsed"),
+        "tests": [],
+      }
+      tests = entry.get("tests") or []
+      for test in tests[:5]:
+        compact_entry["tests"].append(
+          {
+            "name": test.get("name"),
+            "status": test.get("status"),
+            "time_ms": test.get("time_ms"),
+            "memory_kb": test.get("memory_kb"),
+            "message": test.get("message"),
+          }
+        )
+      compact_entries.append(compact_entry)
+    formatted[pid] = compact_entries
+  return formatted
 
 
 def extract_tag_names(tag_ids: Iterable[int], html: str) -> Dict[int, str]:
@@ -165,7 +221,7 @@ def build_metadata_record(problem: dict, html: str, directory_name: str) -> Dict
         "memory_limit_human": memory_text,
         "tags": tags,
         "directory": directory_name,
-        "fetched_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "url": f"https://www.luogu.com.cn/problem/{problem.get('pid')}",
     }
     return record
@@ -174,7 +230,7 @@ def build_metadata_record(problem: dict, html: str, directory_name: str) -> Dict
 def build_catalog_html(metadata: Dict[str, dict]) -> str:
     difficulty_labels_js = json.dumps({str(k): v for k, v in DIFFICULTY_LABELS.items()}, ensure_ascii=False)
     difficulty_order_js = json.dumps([k for k in range(1, 8)], ensure_ascii=False)
-    generated_at = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     fetched_times: List[str] = []
     for entry in metadata.values():
       fetched_at = entry.get("fetched_at")
@@ -186,6 +242,8 @@ def build_catalog_html(metadata: Dict[str, dict]) -> str:
     summary = f"生成 {generated_at} · 最近抓取 {latest_display} · 收录 {total_count} 题"
     summary_js = json.dumps(summary, ensure_ascii=False)
     total_count_js = json.dumps(total_count)
+    history_map = load_judge_history()
+    history_js = json.dumps(history_map, ensure_ascii=False)
 
     html = f"""<!DOCTYPE html>
 <html lang=\"zh-CN\">
@@ -348,6 +406,55 @@ def build_catalog_html(metadata: Dict[str, dict]) -> str:
       font-size: 0.85rem;
     }}
 
+    details.history-block {{
+      margin-top: 0.5rem;
+    }}
+
+    details.history-block > summary {{
+      cursor: pointer;
+      font-weight: 600;
+      outline: none;
+    }}
+
+    .history-entry {{
+      border-top: 1px solid var(--surface-border);
+      padding: 0.75rem 0;
+      font-size: 0.9rem;
+    }}
+
+    .history-entry:first-of-type {{
+      border-top: none;
+      padding-top: 0.25rem;
+    }}
+
+    .history-entry-header {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: baseline;
+      margin-bottom: 0.35rem;
+    }}
+
+    .history-status {{
+      font-weight: 600;
+    }}
+
+    .history-tests {{
+      margin-top: 0.5rem;
+      display: grid;
+      gap: 0.35rem;
+    }}
+
+    .history-test {{
+      background: var(--tag-bg);
+      border: 1px solid var(--tag-border);
+      border-radius: 0.5rem;
+      padding: 0.4rem 0.6rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }}
+
     @media (max-width: 800px) {{
       body {{
         margin: 1rem;
@@ -430,6 +537,7 @@ def build_catalog_html(metadata: Dict[str, dict]) -> str:
     const difficultyOrder = {difficulty_order_js};
     const totalCount = {total_count_js};
     const summaryText = {summary_js};
+    const historyData = {history_js};
 
     const metaInfoEl = document.getElementById('meta-info');
     const resultCountEl = document.getElementById('result-count');
@@ -598,8 +706,134 @@ def build_catalog_html(metadata: Dict[str, dict]) -> str:
         row.appendChild(tagCell);
 
         tbody.appendChild(row);
+
+        const historyKey = resolveHistoryKey(problem);
+        const historyList = historyKey ? historyData[historyKey] : null;
+        if (historyList && historyList.length) {{
+          const historyRow = document.createElement('tr');
+          const historyCell = document.createElement('td');
+          historyCell.colSpan = 6;
+          historyCell.dataset.label = '评测历史';
+          const detailsEl = document.createElement('details');
+          detailsEl.className = 'history-block';
+
+          const summaryEl = document.createElement('summary');
+          summaryEl.textContent = buildHistorySummary(historyList);
+          detailsEl.appendChild(summaryEl);
+
+          historyList.forEach(entry => {{
+            detailsEl.appendChild(renderHistoryEntry(entry));
+          }});
+
+          historyCell.appendChild(detailsEl);
+          historyRow.appendChild(historyCell);
+          tbody.appendChild(historyRow);
+        }}
       }});
       resultCountEl.textContent = `当前筛选：${{visible.length}} / ${{totalCount}} 题`;
+    }}
+
+    function resolveHistoryKey(problem) {{
+      if (problem.pid && historyData[problem.pid]) return problem.pid;
+      if (problem.directory && historyData[problem.directory]) return problem.directory;
+      return null;
+    }}
+
+    function buildHistorySummary(historyList) {{
+      const latest = historyList[0];
+      const status = latest.status || (latest.success ? '通过' : '未通过');
+      const timestamp = formatTimestamp(latest.timestamp);
+      const passCount = typeof latest.pass_count === 'number' ? latest.pass_count : '-';
+      const testCount = typeof latest.test_count === 'number' ? latest.test_count : '-';
+      return `评测历史（${{historyList.length}}） · ${{status}} · ${{timestamp}} · 样例 ${{passCount}}/${{testCount}}`;
+    }}
+
+    function renderHistoryEntry(entry) {{
+      const wrapper = document.createElement('div');
+      wrapper.className = 'history-entry';
+
+      const header = document.createElement('div');
+      header.className = 'history-entry-header';
+
+      const statusSpan = document.createElement('span');
+      statusSpan.className = 'history-status';
+      statusSpan.textContent = entry.status || (entry.success ? '通过' : '未通过');
+      header.appendChild(statusSpan);
+
+      const timeSpan = document.createElement('span');
+      timeSpan.textContent = formatTimestamp(entry.timestamp);
+      header.appendChild(timeSpan);
+
+      if (typeof entry.pass_count === 'number' && typeof entry.test_count === 'number') {{
+        const summarySpan = document.createElement('span');
+        summarySpan.textContent = `样例 ${{entry.pass_count}}/${{entry.test_count}}`;
+        header.appendChild(summarySpan);
+      }}
+
+      if (typeof entry.duration_seconds === 'number') {{
+        const durationSpan = document.createElement('span');
+        durationSpan.textContent = `耗时 ${{formatDuration(entry.duration_seconds)}}`;
+        header.appendChild(durationSpan);
+      }}
+
+      if (typeof entry.compile_elapsed === 'number') {{
+        const compileSpan = document.createElement('span');
+        const compileStatus = entry.compile_success === false ? '（失败）' : '';
+        compileSpan.textContent = `编译 ${{entry.compile_elapsed.toFixed(2)}}s${{compileStatus}}`;
+        header.appendChild(compileSpan);
+      }}
+
+      wrapper.appendChild(header);
+
+      if (Array.isArray(entry.tests) && entry.tests.length) {{
+        const list = document.createElement('div');
+        list.className = 'history-tests';
+        entry.tests.forEach(test => {{
+          const testEl = document.createElement('div');
+          testEl.className = 'history-test';
+          const parts = [];
+          const name = test.name || '样例';
+          const status = test.status || '';
+          parts.push(`[${{name}}] ${{status}}`.trim());
+          if (typeof test.time_ms === 'number') {{
+            parts.push(`${{test.time_ms.toFixed(2)}} ms`);
+          }}
+          if (typeof test.memory_kb === 'number') {{
+            parts.push(`${{(test.memory_kb / 1024).toFixed(2)}} MB`);
+          }}
+          if (test.message) {{
+            parts.push(`备注 ${{test.message}}`);
+          }}
+          testEl.textContent = parts.join(' · ');
+          list.appendChild(testEl);
+        }});
+        wrapper.appendChild(list);
+      }}
+
+      return wrapper;
+    }}
+
+    function formatTimestamp(value) {{
+      if (!value) return '未知时间';
+      try {{
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {{
+          return value;
+        }}
+        return date.toLocaleString();
+      }} catch (error) {{
+        return value;
+      }}
+    }}
+
+    function formatDuration(seconds) {{
+      if (typeof seconds !== 'number' || !Number.isFinite(seconds)) {{
+        return '-';
+      }}
+      if (seconds < 1) {{
+        return `${{(seconds * 1000).toFixed(0)}}ms`;
+      }}
+      return `${{seconds.toFixed(2)}}s`;
     }}
 
     async function init() {{
