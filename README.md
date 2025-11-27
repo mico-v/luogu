@@ -44,6 +44,7 @@ python script/judge.py P1000
 
 ## 题目目录页面
 
+![示例图片](./ui.png)
 在浏览器中打开 `script/luogu_catalog.html` 可以查看已抓取的题目。页面支持：
 
 - 按难度与标签筛选

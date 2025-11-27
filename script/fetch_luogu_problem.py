@@ -8,20 +8,18 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from html.parser import HTMLParser
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import requests
-
 SCRIPT_ID = "lentille-context"
 SCRIPT_PATTERN = re.compile(
-    r'<script[^>]*id="%s"[^>]*>(.*?)</script>' % SCRIPT_ID,
-    re.DOTALL,
+  r'<script[^>]*id="%s"[^>]*>(.*?)</script>' % SCRIPT_ID,
+  re.DOTALL,
 )
 USER_AGENT = (
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+  "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
 )
 REQUEST_TIMEOUT = 15
 
@@ -29,14 +27,14 @@ METADATA_FILENAME = "luogu_problems.json"
 METADATA_PATH = Path(__file__).with_name(METADATA_FILENAME)
 
 DIFFICULTY_LABELS = {
-    0: "暂无评定",
-    1: "入门",
-    2: "普及−",
-    3: "普及/提高−",
-    4: "普及+/提高",
-    5: "提高+/省选−",
-    6: "省选/NOI−",
-    7: "NOI/NOI+/CTSC",
+  0: "暂无评定",
+  1: "入门",
+  2: "普及−",
+  3: "普及/提高−",
+  4: "普及+/提高",
+  5: "提高+/省选−",
+  6: "省选/NOI−",
+  7: "NOI/NOI+/CTSC",
 }
 
 CATALOG_FILENAME = "luogu_catalog.html"
@@ -47,45 +45,62 @@ JUDGE_LOG_PATH = Path(__file__).with_name(JUDGE_LOG_FILENAME)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROBLEM_ROOT = PROJECT_ROOT / "problem"
 
+TAGS_URL = "https://www.luogu.com.cn/_lfe/tags/zh-CN"
+TAGS_FILENAME = "luogu_tags.json"
+TAGS_PATH = Path(__file__).with_name(TAGS_FILENAME)
 
-class TagNameParser(HTMLParser):
-    """Extract tag names from Luogu problem page anchors."""
 
-    def __init__(self, target_ids: Iterable[int]):
-        super().__init__()
-        self._target_ids = {str(tag_id) for tag_id in target_ids}
-        self._current_id: Optional[str] = None
-        self._buffer: List[str] = []
-        self.matches: Dict[int, str] = {}
+def load_tag_catalog(path: Path = TAGS_PATH) -> Optional[dict]:
+    if not path.is_file():
+        return None
+    try:
+        catalog = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(catalog, dict) or not isinstance(catalog.get("tags"), list):
+        return None
+    return catalog
 
-    def handle_starttag(self, tag: str, attrs) -> None:  # type: ignore[override]
-        if tag != "a":
-            return
-        href = dict(attrs).get("href")
-        if not href:
-            return
-        match = re.search(r"/problem/list\?tag=(\d+)", href)
-        if not match:
-            return
-        tag_id = match.group(1)
-        if tag_id not in self._target_ids or int(tag_id) in self.matches:
-            return
-        self._current_id = tag_id
-        self._buffer = []
 
-    def handle_data(self, data: str) -> None:  # type: ignore[override]
-        if self._current_id is None:
-            return
-        self._buffer.append(data)
+def save_tag_catalog(catalog: dict, path: Path = TAGS_PATH) -> None:
+    serialized = json.dumps(catalog, ensure_ascii=False, indent=2, sort_keys=True)
+    path.write_text(serialized + "\n", encoding="utf-8")
 
-    def handle_endtag(self, tag: str) -> None:  # type: ignore[override]
-        if tag != "a" or self._current_id is None:
-            return
-        text = "".join(self._buffer).strip()
-        if text:
-            self.matches[int(self._current_id)] = text
-        self._current_id = None
-        self._buffer = []
+
+def fetch_tag_catalog() -> dict:
+    response = requests.get(TAGS_URL, headers={"User-Agent": USER_AGENT}, timeout=REQUEST_TIMEOUT)
+    response.raise_for_status()
+    catalog = response.json()
+    if not isinstance(catalog, dict) or "tags" not in catalog:
+        raise RuntimeError("Unexpected tag catalog response structure.")
+    return catalog
+
+
+def ensure_tag_catalog(*, force_refresh: bool = False) -> dict:
+    if not force_refresh:
+        existing = load_tag_catalog()
+        if existing:
+            return existing
+    catalog = fetch_tag_catalog()
+    save_tag_catalog(catalog)
+    return catalog
+
+
+def build_tag_name_map(catalog: dict) -> Dict[str, str]:
+    mapping: Dict[str, str] = {}
+    tags = catalog.get("tags")
+    if not isinstance(tags, list):
+        return mapping
+    for entry in tags:
+        if not isinstance(entry, dict):
+            continue
+        tag_id = entry.get("id")
+        name = entry.get("name")
+        if not isinstance(name, str) or not name:
+            continue
+        if isinstance(tag_id, (int, str)):
+            mapping[str(tag_id)] = name
+    return mapping
 
 
 @dataclass
@@ -115,63 +130,61 @@ def save_metadata(payload: Dict[str, dict], path: Path = METADATA_PATH) -> None:
 
 
 def load_judge_history(path: Path = JUDGE_LOG_PATH, limit: int = 10) -> Dict[str, List[dict]]:
-  history: Dict[str, List[dict]] = {}
-  if not path.is_file():
-    return history
-  try:
-    with path.open("r", encoding="utf-8") as handle:
-      for line in handle:
-        record_raw = line.strip()
-        if not record_raw:
-          continue
-        try:
-          record = json.loads(record_raw)
-        except json.JSONDecodeError:
-          continue
-        pid = record.get("pid") or record.get("directory")
-        if not isinstance(pid, str) or not pid:
-          continue
-        history.setdefault(pid, []).append(record)
-  except OSError:
-    return history
+    history: Dict[str, List[dict]] = {}
+    if not path.is_file():
+        return history
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                record_raw = line.strip()
+                if not record_raw:
+                    continue
+                try:
+                    record = json.loads(record_raw)
+                except json.JSONDecodeError:
+                    continue
+                pid = record.get("pid") or record.get("directory")
+                if not isinstance(pid, str) or not pid:
+                    continue
+                history.setdefault(pid, []).append(record)
+    except OSError:
+        return history
 
-  formatted: Dict[str, List[dict]] = {}
-  for pid, entries in history.items():
-    sorted_entries = sorted(entries, key=lambda item: item.get("timestamp") or "", reverse=True)[:limit]
-    compact_entries: List[dict] = []
-    for entry in sorted_entries:
-      compile_block = entry.get("compile") or {}
-      compact_entry = {
-        "timestamp": entry.get("timestamp"),
-        "status": entry.get("status"),
-        "success": entry.get("success"),
-        "test_count": entry.get("test_count"),
-        "pass_count": entry.get("pass_count"),
-        "duration_seconds": entry.get("duration_seconds"),
-        "compile_success": compile_block.get("success"),
-        "compile_elapsed": compile_block.get("elapsed"),
-        "tests": [],
-      }
-      tests = entry.get("tests") or []
-      for test in tests[:5]:
-        compact_entry["tests"].append(
-          {
-            "name": test.get("name"),
-            "status": test.get("status"),
-            "time_ms": test.get("time_ms"),
-            "memory_kb": test.get("memory_kb"),
-            "message": test.get("message"),
-          }
-        )
-      compact_entries.append(compact_entry)
-    formatted[pid] = compact_entries
-  return formatted
-
-
-def extract_tag_names(tag_ids: Iterable[int], html: str) -> Dict[int, str]:
-    parser = TagNameParser(tag_ids)
-    parser.feed(html)
-    return parser.matches
+    formatted: Dict[str, List[dict]] = {}
+    for pid, entries in history.items():
+        sorted_entries = sorted(
+            entries,
+            key=lambda item: item.get("timestamp") or "",
+            reverse=True,
+        )[:limit]
+        compact_entries: List[dict] = []
+        for entry in sorted_entries:
+            compile_block = entry.get("compile") or {}
+            compact_entry = {
+                "timestamp": entry.get("timestamp"),
+                "status": entry.get("status"),
+                "success": entry.get("success"),
+                "test_count": entry.get("test_count"),
+                "pass_count": entry.get("pass_count"),
+                "duration_seconds": entry.get("duration_seconds"),
+                "compile_success": compile_block.get("success"),
+                "compile_elapsed": compile_block.get("elapsed"),
+                "tests": [],
+            }
+            tests = entry.get("tests") or []
+            for test in tests[:5]:
+                compact_entry["tests"].append(
+                    {
+                        "name": test.get("name"),
+                        "status": test.get("status"),
+                        "time_ms": test.get("time_ms"),
+                        "memory_kb": test.get("memory_kb"),
+                        "message": test.get("message"),
+                    }
+                )
+            compact_entries.append(compact_entry)
+        formatted[pid] = compact_entries
+    return formatted
 
 
 def format_limit_values(
@@ -187,7 +200,7 @@ def format_limit_values(
     return time_desc, memory_desc
 
 
-def build_metadata_record(problem: dict, html: str, directory_name: str) -> Dict[str, object]:
+def build_metadata_record(problem: dict, directory_name: str) -> Dict[str, object]:
     limits = problem.get("limits") or {}
     time_values = [int(v) for v in (limits.get("time") or []) if isinstance(v, (int, float))]
     memory_values = [int(v) for v in (limits.get("memory") or []) if isinstance(v, (int, float))]
@@ -202,12 +215,18 @@ def build_metadata_record(problem: dict, html: str, directory_name: str) -> Dict
         difficulty_code = None
     difficulty_label = DIFFICULTY_LABELS.get(difficulty_code or 0, "未知难度")
 
-    tag_ids = [int(tag) for tag in (problem.get("tags") or [])]
-    tag_name_map = extract_tag_names(tag_ids, html) if tag_ids else {}
-    tags = [
-        {"id": tag_id, "name": tag_name_map.get(tag_id, str(tag_id))}
-        for tag_id in tag_ids
-    ]
+    tag_ids_raw = problem.get("tags") or []
+    tag_ids: List[int] = []
+    seen: set[int] = set()
+    for tag in tag_ids_raw:
+      try:
+        tag_id = int(tag)
+      except (TypeError, ValueError):
+        continue
+      if tag_id in seen:
+        continue
+      seen.add(tag_id)
+      tag_ids.append(tag_id)
 
     title = problem.get("content", {}).get("name") or problem.get("title", "")
     record: Dict[str, object] = {
@@ -219,7 +238,7 @@ def build_metadata_record(problem: dict, html: str, directory_name: str) -> Dict
         "time_limit_human": time_text,
         "memory_limit_kb": memory_limit_kb,
         "memory_limit_human": memory_text,
-        "tags": tags,
+        "tags": tag_ids,
         "directory": directory_name,
         "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "url": f"https://www.luogu.com.cn/problem/{problem.get('pid')}",
@@ -227,7 +246,7 @@ def build_metadata_record(problem: dict, html: str, directory_name: str) -> Dict
     return record
 
 
-def build_catalog_html(metadata: Dict[str, dict]) -> str:
+def build_catalog_html(metadata: Dict[str, dict], tag_map: Optional[Dict[str, str]] = None) -> str:
     difficulty_labels_js = json.dumps({str(k): v for k, v in DIFFICULTY_LABELS.items()}, ensure_ascii=False)
     difficulty_order_js = json.dumps([k for k in range(1, 8)], ensure_ascii=False)
     generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -244,6 +263,7 @@ def build_catalog_html(metadata: Dict[str, dict]) -> str:
     total_count_js = json.dumps(total_count)
     history_map = load_judge_history()
     history_js = json.dumps(history_map, ensure_ascii=False)
+    tag_map_js = json.dumps(tag_map or {}, ensure_ascii=False)
 
     html = f"""<!DOCTYPE html>
 <html lang=\"zh-CN\">
@@ -538,6 +558,7 @@ def build_catalog_html(metadata: Dict[str, dict]) -> str:
     const totalCount = {total_count_js};
     const summaryText = {summary_js};
     const historyData = {history_js};
+    const tagMap = {tag_map_js};
 
     const metaInfoEl = document.getElementById('meta-info');
     const resultCountEl = document.getElementById('result-count');
@@ -836,12 +857,29 @@ def build_catalog_html(metadata: Dict[str, dict]) -> str:
       return `${{seconds.toFixed(2)}}s`;
     }}
 
+    function resolveTagList(rawTags) {{
+      if (!Array.isArray(rawTags)) return [];
+      return rawTags
+        .map(tag => {{
+          const id = String(tag);
+          return {{ id, name: tagMap[id] || id }};
+        }})
+        .filter((tag, index, arr) =>
+          index === arr.findIndex(candidate => candidate.id === tag.id)
+        );
+    }}
+
     async function init() {{
       try {{
         const response = await fetch(metadataUrl);
         if (!response.ok) throw new Error(`Failed to load metadata: ${{response.status}}`);
         const data = await response.json();
-        problems = Object.values(data || {{}}).sort((a, b) => (a.pid || '').localeCompare(b.pid || ''));
+        problems = Object.values(data || {{}})
+          .map(problem => {{
+            const tags = resolveTagList(problem.tags);
+            return {{ ...problem, tags }};
+          }})
+          .sort((a, b) => (a.pid || '').localeCompare(b.pid || ''));
         renderDifficultyFilters();
         buildTagFilters();
         renderTable();
@@ -872,10 +910,26 @@ def build_catalog_html(metadata: Dict[str, dict]) -> str:
     return html
 
 
-def generate_catalog(metadata: Dict[str, dict], path: Path = CATALOG_PATH) -> None:
-    html = build_catalog_html(metadata)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(html, encoding="utf-8")
+def generate_catalog(
+  metadata: Dict[str, dict],
+  path: Path = CATALOG_PATH,
+  *,
+  tag_catalog: Optional[dict] = None,
+  force_refresh_tags: bool = False,
+) -> None:
+  tag_map: Dict[str, str] = {}
+  catalog_payload: Optional[dict] = tag_catalog
+  if catalog_payload is None or force_refresh_tags:
+    try:
+      catalog_payload = ensure_tag_catalog(force_refresh=force_refresh_tags)
+    except Exception as exc:  # pragma: no cover - best effort logging path
+      print(f"Warning: failed to refresh Luogu tag catalog: {exc}")
+      catalog_payload = catalog_payload or {}
+  if catalog_payload:
+    tag_map = build_tag_name_map(catalog_payload)
+  html = build_catalog_html(metadata, tag_map)
+  path.parent.mkdir(parents=True, exist_ok=True)
+  path.write_text(html, encoding="utf-8")
 
 
 def fetch_problem_payload(pid: str) -> Tuple[dict, str]:
@@ -989,7 +1043,13 @@ def locate_existing_record(metadata: Dict[str, dict], pid: str) -> Optional[dict
     return None
 
 
-def scaffold(pid: str, base_dir: Path, *, force: bool = False) -> Tuple[Path, bool, Dict[str, dict]]:
+def scaffold(
+  pid: str,
+  base_dir: Path,
+  *,
+  force: bool = False,
+  refresh_tags: bool = False,
+) -> Tuple[Path, bool, Dict[str, dict]]:
     metadata = load_metadata()
     existing_record = locate_existing_record(metadata, pid)
 
@@ -999,7 +1059,7 @@ def scaffold(pid: str, base_dir: Path, *, force: bool = False) -> Tuple[Path, bo
         if candidate_dir.exists():
             return candidate_dir, False, metadata
 
-    problem_payload, html = fetch_problem_payload(pid)
+    problem_payload, _html = fetch_problem_payload(pid)
     problem = parse_problem(problem_payload)
 
     preferred_directory = (
@@ -1016,14 +1076,14 @@ def scaffold(pid: str, base_dir: Path, *, force: bool = False) -> Tuple[Path, bo
     if problem.samples:
         write_samples(problem.samples, target_dir)
 
-    record = build_metadata_record(problem_payload, html, directory_name)
+    record = build_metadata_record(problem_payload, directory_name)
     metadata[pid] = record
     record_pid = record.get("pid")
     if isinstance(record_pid, str) and record_pid and record_pid != pid:
         metadata[record_pid] = record
 
     save_metadata(metadata)
-    generate_catalog(metadata)
+    generate_catalog(metadata, force_refresh_tags=refresh_tags)
 
     return target_dir, True, metadata
 
@@ -1047,11 +1107,16 @@ def main() -> None:
         action="store_true",
         help="Regenerate catalog from existing metadata and exit if no pid is supplied.",
     )
+    parser.add_argument(
+        "--refresh-tags",
+        action="store_true",
+        help="Force refresh of the Luogu tag catalog before generating the HTML catalog.",
+    )
     args = parser.parse_args()
 
     if args.refresh_catalog:
         metadata = load_metadata()
-        generate_catalog(metadata)
+        generate_catalog(metadata, force_refresh_tags=args.refresh_tags)
         print(f"Catalog regenerated at {CATALOG_PATH}")
         if not args.pid:
             return
@@ -1062,7 +1127,12 @@ def main() -> None:
     base_dir = args.base_dir.resolve()
     base_dir.mkdir(parents=True, exist_ok=True)
 
-    out_dir, created, _ = scaffold(args.pid, base_dir, force=args.force)
+    out_dir, created, _ = scaffold(
+        args.pid,
+        base_dir,
+        force=args.force,
+        refresh_tags=args.refresh_tags,
+    )
     if created:
         print(f"Created or updated scaffold at {out_dir}")
         print(f"Metadata saved to {METADATA_PATH}")

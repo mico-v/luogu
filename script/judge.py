@@ -375,28 +375,27 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     metadata = load_problem_metadata()
     base_dir = args.base_dir.resolve()
 
-    problem_dir: Optional[Path] = None
+    problem_dir: Path
+    pid_label: str
     problem_info: Optional[dict] = None
-    pid_label: Optional[str] = args.pid
 
     if args.pid:
         problem_dir, problem_info = resolve_problem_directory(args.pid, base_dir, metadata)
         if not problem_dir.is_dir():
             print(f"Problem directory {problem_dir} not found for pid {args.pid}", file=sys.stderr)
             return 1
+        pid_label = args.pid
     elif args.problem_dir is not None:
         problem_dir = args.problem_dir.resolve()
         if not problem_dir.is_dir():
             print(f"Problem directory {problem_dir} not found", file=sys.stderr)
             return 1
         problem_info = locate_record_by_directory(metadata, problem_dir)
-        pid_label = problem_info.get("pid") if problem_info else problem_dir.name
+        inferred_pid = problem_info.get("pid") if problem_info else None
+        pid_label = inferred_pid if isinstance(inferred_pid, str) and inferred_pid else problem_dir.name
     else:
         parser.error("Provide a problem directory or specify --pid.")
-
-    assert problem_dir is not None  # for type checkers
-    if pid_label is None:
-        pid_label = problem_dir.name
+        raise AssertionError("unreachable")  # parser.error exits
 
     print(f"Judging {pid_label} @ {problem_dir}")
 

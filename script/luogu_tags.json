@@ -1,0 +1,2978 @@
+{
+  "_locale": "zh-CN",
+  "_version": "zh-CN/2025112720",
+  "tags": [
+    {
+      "id": -2,
+      "name": "语言入门（请选择[入门与面试]题库）",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 1,
+      "name": "模拟",
+      "parent": 110,
+      "type": 2
+    },
+    {
+      "id": 2,
+      "name": "字符串",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 3,
+      "name": "动态规划 DP",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 4,
+      "name": "搜索",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 5,
+      "name": "数学",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 6,
+      "name": "图论",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 7,
+      "name": "贪心",
+      "parent": 110,
+      "type": 2
+    },
+    {
+      "id": 8,
+      "name": "计算几何",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 9,
+      "name": "暴力数据结构",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 10,
+      "name": "高精度",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 11,
+      "name": "树形数据结构",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 12,
+      "name": "递推",
+      "parent": 110,
+      "type": 2
+    },
+    {
+      "id": 13,
+      "name": "博弈论",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 14,
+      "name": "1997",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 15,
+      "name": "1998",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 16,
+      "name": "1999",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 17,
+      "name": "2000",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 18,
+      "name": "2001",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 19,
+      "name": "2002",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 20,
+      "name": "2003",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 21,
+      "name": "2004",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 22,
+      "name": "2005",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 23,
+      "name": "2006",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 24,
+      "name": "2007",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 25,
+      "name": "2008",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 26,
+      "name": "2009",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 27,
+      "name": "2010",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 28,
+      "name": "2011",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 29,
+      "name": "2012",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 30,
+      "name": "2013",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 31,
+      "name": "2014",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 32,
+      "name": "2015",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 33,
+      "name": "2016",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 34,
+      "name": "2017",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 35,
+      "name": "2018",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 36,
+      "name": "2019",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 37,
+      "name": "2020",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 38,
+      "name": "重庆",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 39,
+      "name": "四川",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 40,
+      "name": "河南",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 41,
+      "name": "莫队",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 42,
+      "name": "线段树",
+      "parent": 11,
+      "type": 2
+    },
+    {
+      "id": 43,
+      "name": "倍增",
+      "parent": 110,
+      "type": 2
+    },
+    {
+      "id": 44,
+      "name": "线性数据结构",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 45,
+      "name": "二分",
+      "parent": 110,
+      "type": 2
+    },
+    {
+      "id": 46,
+      "name": "USACO",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 47,
+      "name": "并查集",
+      "parent": 11,
+      "type": 2
+    },
+    {
+      "id": 48,
+      "name": "各省省选",
+      "parent": 426,
+      "type": 3
+    },
+    {
+      "id": 49,
+      "name": "点分治",
+      "parent": 230,
+      "type": 2
+    },
+    {
+      "id": 50,
+      "name": "平衡树",
+      "parent": 11,
+      "type": 2
+    },
+    {
+      "id": 51,
+      "name": "堆",
+      "parent": 11,
+      "type": 2
+    },
+    {
+      "id": 52,
+      "name": "集训队互测",
+      "parent": 426,
+      "type": 3
+    },
+    {
+      "id": 53,
+      "name": "树状数组",
+      "parent": 11,
+      "type": 2
+    },
+    {
+      "id": 54,
+      "name": "递归",
+      "parent": 110,
+      "type": 2
+    },
+    {
+      "id": 55,
+      "name": "树上启发式合并",
+      "parent": 230,
+      "type": 2
+    },
+    {
+      "id": 56,
+      "name": "单调队列",
+      "parent": 44,
+      "type": 2
+    },
+    {
+      "id": 57,
+      "name": "POI（波兰）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 58,
+      "name": "2021",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 59,
+      "name": "2022",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 60,
+      "name": "2023",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 61,
+      "name": "2024",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 62,
+      "name": "2025",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 63,
+      "name": "LGV 引理",
+      "parent": 271,
+      "type": 2
+    },
+    {
+      "id": 64,
+      "name": "矩阵树定理",
+      "parent": 271,
+      "type": 2
+    },
+    {
+      "id": 65,
+      "name": "颜色段均摊（珂朵莉树 ODT）",
+      "parent": 44,
+      "type": 2
+    },
+    {
+      "id": 66,
+      "name": "原根",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 67,
+      "name": "三分",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 68,
+      "name": "Kruskal 重构树",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 69,
+      "name": "多项式",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 70,
+      "name": "福建省历届夏令营",
+      "parent": 427,
+      "type": 3
+    },
+    {
+      "id": 71,
+      "name": "矩阵运算",
+      "parent": 271,
+      "type": 2
+    },
+    {
+      "id": 72,
+      "name": "数论",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 73,
+      "name": "算法",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 74,
+      "name": "数据结构",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 75,
+      "name": "来源",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 76,
+      "name": "时间",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 77,
+      "name": "NOI",
+      "parent": 426,
+      "type": 3
+    },
+    {
+      "id": 78,
+      "name": "离散化",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 79,
+      "name": "网络流",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 80,
+      "name": "高级数据结构",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 81,
+      "name": "洛谷原创",
+      "parent": 429,
+      "type": 3
+    },
+    {
+      "id": 82,
+      "name": "NOIP 普及组",
+      "parent": 426,
+      "type": 3
+    },
+    {
+      "id": 83,
+      "name": "NOIP 提高组",
+      "parent": 426,
+      "type": 3
+    },
+    {
+      "id": 85,
+      "name": "APIO",
+      "parent": 426,
+      "type": 3
+    },
+    {
+      "id": 87,
+      "name": "地区",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 88,
+      "name": "浙江",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 89,
+      "name": "上海",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 90,
+      "name": "福建",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 91,
+      "name": "江苏",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 92,
+      "name": "安徽",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 93,
+      "name": "湖南",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 94,
+      "name": "北京",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 95,
+      "name": "河北",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 96,
+      "name": "广东",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 97,
+      "name": "山东",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 98,
+      "name": "吉林",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 99,
+      "name": "NOI 导刊",
+      "parent": 427,
+      "type": 3
+    },
+    {
+      "id": 100,
+      "name": "cdq 分治",
+      "parent": 11,
+      "type": 2
+    },
+    {
+      "id": 101,
+      "name": "后缀自动机 SAM",
+      "parent": 2,
+      "type": 2
+    },
+    {
+      "id": 102,
+      "name": "IOI",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 103,
+      "name": "交互题",
+      "parent": null,
+      "type": 5
+    },
+    {
+      "id": 104,
+      "name": "提交答案",
+      "parent": null,
+      "type": 5
+    },
+    {
+      "id": 105,
+      "name": "特殊题目",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 107,
+      "name": "Special Judge",
+      "parent": null,
+      "type": 5
+    },
+    {
+      "id": 108,
+      "name": "O2优化",
+      "parent": null,
+      "type": 5
+    },
+    {
+      "id": 110,
+      "name": "﻿基础算法",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 111,
+      "name": "枚举",
+      "parent": 110,
+      "type": 2
+    },
+    {
+      "id": 112,
+      "name": "分治",
+      "parent": 110,
+      "type": 2
+    },
+    {
+      "id": 113,
+      "name": "排序",
+      "parent": 110,
+      "type": 2
+    },
+    {
+      "id": 114,
+      "name": "山西",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 115,
+      "name": "CCO（加拿大）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 116,
+      "name": "CCC（加拿大）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 117,
+      "name": "CEOI（中欧）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 118,
+      "name": "eJOI（欧洲）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 119,
+      "name": "快速排序",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 120,
+      "name": "堆排序",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 121,
+      "name": "希尔排序",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 122,
+      "name": "信息论",
+      "parent": 5,
+      "type": 2
+    },
+    {
+      "id": 123,
+      "name": "查找算法",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 124,
+      "name": "顺序查找",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 126,
+      "name": "广度优先搜索 BFS",
+      "parent": 4,
+      "type": 2
+    },
+    {
+      "id": 127,
+      "name": "深度优先搜索 DFS",
+      "parent": 4,
+      "type": 2
+    },
+    {
+      "id": 128,
+      "name": "剪枝",
+      "parent": 4,
+      "type": 2
+    },
+    {
+      "id": 129,
+      "name": "记忆化搜索",
+      "parent": 4,
+      "type": 2
+    },
+    {
+      "id": 130,
+      "name": "启发式搜索",
+      "parent": 4,
+      "type": 2
+    },
+    {
+      "id": 131,
+      "name": "迭代加深搜索",
+      "parent": 4,
+      "type": 2
+    },
+    {
+      "id": 132,
+      "name": "启发式迭代加深搜索 IDA*",
+      "parent": 4,
+      "type": 2
+    },
+    {
+      "id": 133,
+      "name": "Dancing Links",
+      "parent": 4,
+      "type": 2
+    },
+    {
+      "id": 134,
+      "name": "爬山算法 Local search",
+      "parent": 4,
+      "type": 2
+    },
+    {
+      "id": 135,
+      "name": "模拟退火",
+      "parent": 4,
+      "type": 2
+    },
+    {
+      "id": 136,
+      "name": "随机调整",
+      "parent": 4,
+      "type": 2
+    },
+    {
+      "id": 137,
+      "name": "遗传算法",
+      "parent": 4,
+      "type": 2
+    },
+    {
+      "id": 139,
+      "name": "背包 DP",
+      "parent": 3,
+      "type": 2
+    },
+    {
+      "id": 140,
+      "name": "环形 dp",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 141,
+      "name": "数位 DP",
+      "parent": 3,
+      "type": 2
+    },
+    {
+      "id": 143,
+      "name": "多维状态",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 144,
+      "name": "区间 DP",
+      "parent": 3,
+      "type": 2
+    },
+    {
+      "id": 146,
+      "name": "动态规划优化",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 148,
+      "name": "优先队列",
+      "parent": 146,
+      "type": 2
+    },
+    {
+      "id": 149,
+      "name": "矩阵加速",
+      "parent": 146,
+      "type": 2
+    },
+    {
+      "id": 150,
+      "name": "斜率优化",
+      "parent": 146,
+      "type": 2
+    },
+    {
+      "id": 151,
+      "name": "状态合并",
+      "parent": 146,
+      "type": 2
+    },
+    {
+      "id": 152,
+      "name": "树形 DP",
+      "parent": 3,
+      "type": 2
+    },
+    {
+      "id": 153,
+      "name": "凸完全单调性（wqs 二分）",
+      "parent": 146,
+      "type": 2
+    },
+    {
+      "id": 154,
+      "name": "四边形不等式",
+      "parent": 146,
+      "type": 2
+    },
+    {
+      "id": 155,
+      "name": "图论建模",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 156,
+      "name": "邻接矩阵",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 157,
+      "name": "邻接表",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 158,
+      "name": "图遍历",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 159,
+      "name": "拓扑排序",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 160,
+      "name": "最短路",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 161,
+      "name": "江西",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 162,
+      "name": "贵州",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 163,
+      "name": "广西",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 164,
+      "name": "陕西",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 166,
+      "name": "生成树",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 167,
+      "name": "辽宁",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 168,
+      "name": "云南",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 169,
+      "name": "生成树的另类算法",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 170,
+      "name": "次小生成树",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 171,
+      "name": "特殊生成树",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 172,
+      "name": "平面图",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 173,
+      "name": "最小环",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 174,
+      "name": "负权环",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 175,
+      "name": "连通块",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 176,
+      "name": "2-SAT",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 177,
+      "name": "平面图欧拉公式",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 179,
+      "name": "强连通分量",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 180,
+      "name": "Tarjan",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 181,
+      "name": "双连通分量",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 182,
+      "name": "欧拉回路",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 183,
+      "name": "AOV",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 184,
+      "name": "AOE",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 185,
+      "name": "差分约束",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 186,
+      "name": "仙人掌",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 187,
+      "name": "二分图",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 188,
+      "name": "匈牙利算法",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 189,
+      "name": "一般图的最大匹配",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 190,
+      "name": "Konig定理",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 191,
+      "name": "带权二分图匹配",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 192,
+      "name": "KM算法",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 193,
+      "name": "稳定婚姻系统",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 195,
+      "name": "Dinic",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 196,
+      "name": "Sap",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 197,
+      "name": "上下界网络流",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 198,
+      "name": "最小割",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 199,
+      "name": "闭合图",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 200,
+      "name": "最小点权覆盖集",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 201,
+      "name": "最大点权独立集",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 202,
+      "name": "分数规划",
+      "parent": 467,
+      "type": 2
+    },
+    {
+      "id": 203,
+      "name": "最大密度子图",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 204,
+      "name": "费用流",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 205,
+      "name": "最短路增广费用流",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 207,
+      "name": "最小费用可行流",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 208,
+      "name": "树的遍历",
+      "parent": 230,
+      "type": 2
+    },
+    {
+      "id": 209,
+      "name": "树上距离",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 210,
+      "name": "节点到根的距离",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 211,
+      "name": "最近公共祖先 LCA",
+      "parent": 230,
+      "type": 2
+    },
+    {
+      "id": 212,
+      "name": "节点间的距离",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 213,
+      "name": "树的直径",
+      "parent": 230,
+      "type": 2
+    },
+    {
+      "id": 214,
+      "name": "霍夫曼树",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 215,
+      "name": "可并堆",
+      "parent": 11,
+      "type": 2
+    },
+    {
+      "id": 216,
+      "name": "斜堆",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 217,
+      "name": "二项堆",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 218,
+      "name": "AVL",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 219,
+      "name": "Treap",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 220,
+      "name": "SBT",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 221,
+      "name": "Splay",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 222,
+      "name": "静态排序树",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 223,
+      "name": "替罪羊树",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 224,
+      "name": "二维线段树",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 225,
+      "name": "矩形树",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 227,
+      "name": "动态树",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 228,
+      "name": "树链剖分",
+      "parent": 230,
+      "type": 2
+    },
+    {
+      "id": 229,
+      "name": "动态树 LCT",
+      "parent": 11,
+      "type": 2
+    },
+    {
+      "id": 230,
+      "name": "树论",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 231,
+      "name": "RMQ",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 232,
+      "name": "树套树",
+      "parent": 11,
+      "type": 2
+    },
+    {
+      "id": 233,
+      "name": "可持久化线段树",
+      "parent": 11,
+      "type": 2
+    },
+    {
+      "id": 234,
+      "name": "可持久化",
+      "parent": 11,
+      "type": 2
+    },
+    {
+      "id": 235,
+      "name": "哈希 hashing",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 236,
+      "name": "ELFhash",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 237,
+      "name": "SDBM",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 238,
+      "name": "BKDR",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 239,
+      "name": "素数判断,质数,筛法",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 241,
+      "name": "最大公约数 gcd",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 242,
+      "name": "扩展欧几里德算法",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 243,
+      "name": "不定方程",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 244,
+      "name": "进制",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 246,
+      "name": "群论",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 247,
+      "name": "置换",
+      "parent": 246,
+      "type": 2
+    },
+    {
+      "id": 248,
+      "name": "Pólya 定理",
+      "parent": 246,
+      "type": 2
+    },
+    {
+      "id": 249,
+      "name": "虚树",
+      "parent": 230,
+      "type": 2
+    },
+    {
+      "id": 250,
+      "name": "中国剩余定理 CRT",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 251,
+      "name": "莫比乌斯反演",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 252,
+      "name": "组合数学",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 253,
+      "name": "排列组合",
+      "parent": 252,
+      "type": 2
+    },
+    {
+      "id": 254,
+      "name": "前缀和",
+      "parent": 44,
+      "type": 2
+    },
+    {
+      "id": 255,
+      "name": "二项式定理",
+      "parent": 252,
+      "type": 2
+    },
+    {
+      "id": 256,
+      "name": "康托展开",
+      "parent": 252,
+      "type": 2
+    },
+    {
+      "id": 257,
+      "name": "袋与球问题",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 258,
+      "name": "鸽笼原理",
+      "parent": 252,
+      "type": 2
+    },
+    {
+      "id": 259,
+      "name": "容斥原理",
+      "parent": 252,
+      "type": 2
+    },
+    {
+      "id": 260,
+      "name": "Fibonacci 数列",
+      "parent": 252,
+      "type": 2
+    },
+    {
+      "id": 261,
+      "name": "Catalan 数",
+      "parent": 252,
+      "type": 2
+    },
+    {
+      "id": 262,
+      "name": "Stirling 数",
+      "parent": 252,
+      "type": 2
+    },
+    {
+      "id": 263,
+      "name": "A*  算法",
+      "parent": 4,
+      "type": 2
+    },
+    {
+      "id": 264,
+      "name": "生成函数",
+      "parent": 252,
+      "type": 2
+    },
+    {
+      "id": 265,
+      "name": "线性规划",
+      "parent": 467,
+      "type": 2
+    },
+    {
+      "id": 266,
+      "name": "概率论",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 267,
+      "name": "简单概率",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 269,
+      "name": "Bayes",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 270,
+      "name": "期望",
+      "parent": 266,
+      "type": 2
+    },
+    {
+      "id": 271,
+      "name": "线性代数",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 272,
+      "name": "矩阵乘法",
+      "parent": 271,
+      "type": 2
+    },
+    {
+      "id": 273,
+      "name": "线性递推",
+      "parent": 271,
+      "type": 2
+    },
+    {
+      "id": 274,
+      "name": "高斯消元",
+      "parent": 271,
+      "type": 2
+    },
+    {
+      "id": 275,
+      "name": "异或方程组",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 276,
+      "name": "逆元",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 277,
+      "name": "线性基",
+      "parent": 271,
+      "type": 2
+    },
+    {
+      "id": 278,
+      "name": "微积分",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 280,
+      "name": "导数",
+      "parent": 278,
+      "type": 2
+    },
+    {
+      "id": 281,
+      "name": "积分",
+      "parent": 278,
+      "type": 2
+    },
+    {
+      "id": 282,
+      "name": "定积分",
+      "parent": 278,
+      "type": 2
+    },
+    {
+      "id": 283,
+      "name": "三维计算几何",
+      "parent": 8,
+      "type": 2
+    },
+    {
+      "id": 284,
+      "name": "级数",
+      "parent": 278,
+      "type": 2
+    },
+    {
+      "id": 285,
+      "name": "基本数组",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 286,
+      "name": "向量",
+      "parent": 8,
+      "type": 2
+    },
+    {
+      "id": 287,
+      "name": "栈",
+      "parent": 44,
+      "type": 2
+    },
+    {
+      "id": 288,
+      "name": "队列",
+      "parent": 44,
+      "type": 2
+    },
+    {
+      "id": 289,
+      "name": "分块",
+      "parent": 44,
+      "type": 2
+    },
+    {
+      "id": 290,
+      "name": "ST 表",
+      "parent": 44,
+      "type": 2
+    },
+    {
+      "id": 291,
+      "name": "凸包",
+      "parent": 8,
+      "type": 2
+    },
+    {
+      "id": 292,
+      "name": "叉积",
+      "parent": 8,
+      "type": 2
+    },
+    {
+      "id": 293,
+      "name": "线段相交",
+      "parent": 8,
+      "type": 2
+    },
+    {
+      "id": 295,
+      "name": "半平面交",
+      "parent": 8,
+      "type": 2
+    },
+    {
+      "id": 296,
+      "name": "最近点对",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 298,
+      "name": "扫描线",
+      "parent": 8,
+      "type": 2
+    },
+    {
+      "id": 299,
+      "name": "旋转卡壳",
+      "parent": 8,
+      "type": 2
+    },
+    {
+      "id": 300,
+      "name": "字典树 Trie",
+      "parent": 2,
+      "type": 2
+    },
+    {
+      "id": 301,
+      "name": "AC 自动机",
+      "parent": 2,
+      "type": 2
+    },
+    {
+      "id": 302,
+      "name": "KMP 算法",
+      "parent": 2,
+      "type": 2
+    },
+    {
+      "id": 303,
+      "name": "后缀数组 SA",
+      "parent": 2,
+      "type": 2
+    },
+    {
+      "id": 304,
+      "name": "后缀树",
+      "parent": 2,
+      "type": 2
+    },
+    {
+      "id": 305,
+      "name": "有限状态自动机",
+      "parent": 2,
+      "type": 2
+    },
+    {
+      "id": 307,
+      "name": "简单密码学",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 308,
+      "name": "其它技巧",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 309,
+      "name": "随机化",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 311,
+      "name": "博弈树",
+      "parent": 13,
+      "type": 2
+    },
+    {
+      "id": 312,
+      "name": "Shannon 开关游戏",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 313,
+      "name": "快速傅里叶变换 FFT",
+      "parent": 69,
+      "type": 2
+    },
+    {
+      "id": 314,
+      "name": "位运算",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 316,
+      "name": "整体二分",
+      "parent": 11,
+      "type": 2
+    },
+    {
+      "id": 318,
+      "name": "构造",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 320,
+      "name": "基环树",
+      "parent": 230,
+      "type": 2
+    },
+    {
+      "id": 321,
+      "name": "K-D Tree",
+      "parent": 11,
+      "type": 2
+    },
+    {
+      "id": 322,
+      "name": "Lucas 定理",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 323,
+      "name": "轮廓线 DP",
+      "parent": 3,
+      "type": 2
+    },
+    {
+      "id": 324,
+      "name": "快速数论变换 NTT",
+      "parent": 69,
+      "type": 2
+    },
+    {
+      "id": 325,
+      "name": "回文自动机 PAM",
+      "parent": 2,
+      "type": 2
+    },
+    {
+      "id": 326,
+      "name": "快速沃尔什变换 FWT",
+      "parent": 69,
+      "type": 2
+    },
+    {
+      "id": 327,
+      "name": "快速莫比乌斯变换 FMT",
+      "parent": 69,
+      "type": 2
+    },
+    {
+      "id": 328,
+      "name": "天津",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 329,
+      "name": "Manacher 算法",
+      "parent": 2,
+      "type": 2
+    },
+    {
+      "id": 330,
+      "name": "差分",
+      "parent": 44,
+      "type": 2
+    },
+    {
+      "id": 331,
+      "name": "CTT（清华集训/北大集训）",
+      "parent": 426,
+      "type": 3
+    },
+    {
+      "id": 332,
+      "name": "网络流与线性规划 24 题",
+      "parent": 427,
+      "type": 3
+    },
+    {
+      "id": 333,
+      "name": "COCI（克罗地亚）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 334,
+      "name": "BalticOI（波罗的海）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 335,
+      "name": "ICPC",
+      "parent": 430,
+      "type": 3
+    },
+    {
+      "id": 336,
+      "name": "JOI（日本）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 337,
+      "name": "洛谷月赛",
+      "parent": 429,
+      "type": 3
+    },
+    {
+      "id": 338,
+      "name": "2026",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 339,
+      "name": "2027",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 340,
+      "name": "2028",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 341,
+      "name": "2077",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 342,
+      "name": "CSP-S 提高级",
+      "parent": 426,
+      "type": 3
+    },
+    {
+      "id": 343,
+      "name": "CSP-J 入门级",
+      "parent": 426,
+      "type": 3
+    },
+    {
+      "id": 344,
+      "name": "1996",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 345,
+      "name": "双指针 two-pointer",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 346,
+      "name": "AGM",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 347,
+      "name": "NOI Online",
+      "parent": 426,
+      "type": 3
+    },
+    {
+      "id": 348,
+      "name": "Ynoi",
+      "parent": 427,
+      "type": 3
+    },
+    {
+      "id": 350,
+      "name": "圆方树",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 351,
+      "name": "通信题",
+      "parent": null,
+      "type": 5
+    },
+    {
+      "id": 353,
+      "name": "顺序结构",
+      "parent": -2,
+      "type": 2
+    },
+    {
+      "id": 354,
+      "name": "分支结构",
+      "parent": -2,
+      "type": 2
+    },
+    {
+      "id": 355,
+      "name": "循环结构",
+      "parent": -2,
+      "type": 2
+    },
+    {
+      "id": 356,
+      "name": "数组",
+      "parent": -2,
+      "type": 2
+    },
+    {
+      "id": 357,
+      "name": "字符串（入门）",
+      "parent": -2,
+      "type": 2
+    },
+    {
+      "id": 358,
+      "name": "结构体",
+      "parent": -2,
+      "type": 2
+    },
+    {
+      "id": 359,
+      "name": "函数与递归",
+      "parent": -2,
+      "type": 2
+    },
+    {
+      "id": 360,
+      "name": "链表",
+      "parent": 44,
+      "type": 2
+    },
+    {
+      "id": 361,
+      "name": "蓝桥杯国赛",
+      "parent": 430,
+      "type": 3
+    },
+    {
+      "id": 362,
+      "name": "2078",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 363,
+      "name": "蓝桥杯省赛",
+      "parent": 430,
+      "type": 3
+    },
+    {
+      "id": 364,
+      "name": "Dilworth 定理",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 365,
+      "name": "Ad-hoc",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 367,
+      "name": "2029",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 368,
+      "name": "笛卡尔树",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 369,
+      "name": "拟阵",
+      "parent": 467,
+      "type": 2
+    },
+    {
+      "id": 370,
+      "name": "Nim 积",
+      "parent": 13,
+      "type": 2
+    },
+    {
+      "id": 371,
+      "name": "根号分治",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 372,
+      "name": "拉格朗日反演",
+      "parent": 252,
+      "type": 2
+    },
+    {
+      "id": 373,
+      "name": "模拟费用流",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 374,
+      "name": "分散层叠",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 375,
+      "name": "均摊分析",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 376,
+      "name": "分类讨论",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 377,
+      "name": "李超线段树",
+      "parent": 11,
+      "type": 2
+    },
+    {
+      "id": 378,
+      "name": "吉司机线段树 segment tree beats",
+      "parent": 11,
+      "type": 2
+    },
+    {
+      "id": 379,
+      "name": "线段树合并",
+      "parent": 11,
+      "type": 2
+    },
+    {
+      "id": 380,
+      "name": "折半搜索 meet in the middle",
+      "parent": 4,
+      "type": 2
+    },
+    {
+      "id": 381,
+      "name": "XCPC",
+      "parent": 430,
+      "type": 3
+    },
+    {
+      "id": 382,
+      "name": "动态树分治",
+      "parent": 230,
+      "type": 2
+    },
+    {
+      "id": 383,
+      "name": "传智杯",
+      "parent": 430,
+      "type": 3
+    },
+    {
+      "id": 385,
+      "name": "单调栈",
+      "parent": 44,
+      "type": 2
+    },
+    {
+      "id": 386,
+      "name": "语言月赛",
+      "parent": 429,
+      "type": 3
+    },
+    {
+      "id": 387,
+      "name": "杨表",
+      "parent": 252,
+      "type": 2
+    },
+    {
+      "id": 388,
+      "name": "类欧几里得算法",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 389,
+      "name": "PA（波兰）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 390,
+      "name": "THUPC",
+      "parent": 430,
+      "type": 3
+    },
+    {
+      "id": 391,
+      "name": "Berlekamp-Massey(BM) 算法",
+      "parent": 69,
+      "type": 2
+    },
+    {
+      "id": 393,
+      "name": "ROI（俄罗斯）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 394,
+      "name": "EGOI（欧洲/女生）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 396,
+      "name": "梯度下降法",
+      "parent": 4,
+      "type": 2
+    },
+    {
+      "id": 397,
+      "name": "湖北",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 398,
+      "name": "黑龙江",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 399,
+      "name": "海南",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 400,
+      "name": "甘肃",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 401,
+      "name": "青海",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 402,
+      "name": "台湾",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 403,
+      "name": "内蒙古",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 404,
+      "name": "西藏",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 405,
+      "name": "宁夏",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 406,
+      "name": "新疆",
+      "parent": 497,
+      "type": 1
+    },
+    {
+      "id": 407,
+      "name": "香港",
+      "parent": 498,
+      "type": 1
+    },
+    {
+      "id": 408,
+      "name": "澳门",
+      "parent": 498,
+      "type": 1
+    },
+    {
+      "id": 409,
+      "name": "GESP",
+      "parent": 431,
+      "type": 3
+    },
+    {
+      "id": 410,
+      "name": "Prüfer 序列",
+      "parent": 230,
+      "type": 2
+    },
+    {
+      "id": 411,
+      "name": "调和级数",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 412,
+      "name": "拉格朗日乘数法",
+      "parent": 5,
+      "type": 2
+    },
+    {
+      "id": 413,
+      "name": "近似算法",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 414,
+      "name": "随机算法",
+      "parent": null,
+      "type": 6
+    },
+    {
+      "id": 415,
+      "name": "欧拉降幂",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 416,
+      "name": "集合幂级数，子集卷积",
+      "parent": 69,
+      "type": 2
+    },
+    {
+      "id": 417,
+      "name": "拉格朗日插值法",
+      "parent": 5,
+      "type": 2
+    },
+    {
+      "id": 419,
+      "name": "Lyndon 分解",
+      "parent": 2,
+      "type": 2
+    },
+    {
+      "id": 420,
+      "name": "济南",
+      "parent": 498,
+      "type": 1
+    },
+    {
+      "id": 421,
+      "name": "南京",
+      "parent": 498,
+      "type": 1
+    },
+    {
+      "id": 422,
+      "name": "青岛",
+      "parent": 498,
+      "type": 1
+    },
+    {
+      "id": 423,
+      "name": "Stern-Brocot 树",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 424,
+      "name": "2079",
+      "parent": null,
+      "type": 4
+    },
+    {
+      "id": 426,
+      "name": "NOI 系列赛事",
+      "parent": null,
+      "type": 3
+    },
+    {
+      "id": 427,
+      "name": "经典套题",
+      "parent": null,
+      "type": 3
+    },
+    {
+      "id": 428,
+      "name": "国际知名赛事",
+      "parent": null,
+      "type": 3
+    },
+    {
+      "id": 429,
+      "name": "洛谷比赛",
+      "parent": null,
+      "type": 3
+    },
+    {
+      "id": 430,
+      "name": "大学竞赛",
+      "parent": null,
+      "type": 3
+    },
+    {
+      "id": 431,
+      "name": "其他竞赛",
+      "parent": null,
+      "type": 3
+    },
+    {
+      "id": 432,
+      "name": "THUSC",
+      "parent": 431,
+      "type": 3
+    },
+    {
+      "id": 434,
+      "name": "高校校赛",
+      "parent": 430,
+      "type": 3
+    },
+    {
+      "id": 435,
+      "name": "DP 套 DP",
+      "parent": 146,
+      "type": 2
+    },
+    {
+      "id": 436,
+      "name": "NOISG（新加坡）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 437,
+      "name": "NordicOI（北欧）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 438,
+      "name": "THUWC",
+      "parent": 431,
+      "type": 3
+    },
+    {
+      "id": 439,
+      "name": "BalkanOI（巴尔干半岛）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 440,
+      "name": "KOI（韩国）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 441,
+      "name": "RMI（罗马尼亚）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 442,
+      "name": "CSP-X 小学组",
+      "parent": 488,
+      "type": 3
+    },
+    {
+      "id": 443,
+      "name": "动态 DP",
+      "parent": 146,
+      "type": 2
+    },
+    {
+      "id": 444,
+      "name": "线性 DP",
+      "parent": 3,
+      "type": 2
+    },
+    {
+      "id": 445,
+      "name": "SG 函数",
+      "parent": 13,
+      "type": 2
+    },
+    {
+      "id": 446,
+      "name": "线段树分治",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 447,
+      "name": "离线处理",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 448,
+      "name": "整除分块",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 449,
+      "name": "极角排序",
+      "parent": 8,
+      "type": 2
+    },
+    {
+      "id": 450,
+      "name": "弦图",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 451,
+      "name": "Dirichlet 卷积",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 452,
+      "name": "大步小步算法 BSGS",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 453,
+      "name": "二次剩余",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 454,
+      "name": "行列式",
+      "parent": 271,
+      "type": 2
+    },
+    {
+      "id": 455,
+      "name": "Bézout 定理",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 456,
+      "name": "概率生成函数",
+      "parent": 266,
+      "type": 2
+    },
+    {
+      "id": 457,
+      "name": "随机游走 Markov Chain",
+      "parent": 266,
+      "type": 2
+    },
+    {
+      "id": 458,
+      "name": "鞅的停时定理",
+      "parent": 266,
+      "type": 2
+    },
+    {
+      "id": 459,
+      "name": "WC",
+      "parent": 426,
+      "type": 3
+    },
+    {
+      "id": 460,
+      "name": "CTSC/CTS",
+      "parent": 426,
+      "type": 3
+    },
+    {
+      "id": 461,
+      "name": "杜教筛",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 462,
+      "name": "欧拉函数",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 463,
+      "name": "决策单调性",
+      "parent": 146,
+      "type": 2
+    },
+    {
+      "id": 464,
+      "name": "状压 DP",
+      "parent": 3,
+      "type": 2
+    },
+    {
+      "id": 465,
+      "name": "bitset",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 466,
+      "name": "特征值",
+      "parent": 271,
+      "type": 2
+    },
+    {
+      "id": 467,
+      "name": "组合优化",
+      "parent": null,
+      "type": 2
+    },
+    {
+      "id": 468,
+      "name": "整数规划",
+      "parent": 467,
+      "type": 2
+    },
+    {
+      "id": 469,
+      "name": "半正定规划",
+      "parent": 467,
+      "type": 2
+    },
+    {
+      "id": 470,
+      "name": "原始对偶",
+      "parent": 467,
+      "type": 2
+    },
+    {
+      "id": 471,
+      "name": "最大流最小割定理",
+      "parent": 467,
+      "type": 2
+    },
+    {
+      "id": 472,
+      "name": "全局平衡二叉树",
+      "parent": 230,
+      "type": 2
+    },
+    {
+      "id": 473,
+      "name": "哈希表",
+      "parent": 44,
+      "type": 2
+    },
+    {
+      "id": 474,
+      "name": "Z 函数",
+      "parent": 2,
+      "type": 2
+    },
+    {
+      "id": 475,
+      "name": "筛法",
+      "parent": 72,
+      "type": 2
+    },
+    {
+      "id": 476,
+      "name": "Floyd 算法",
+      "parent": 6,
+      "type": 2
+    },
+    {
+      "id": 477,
+      "name": "启发式合并",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 478,
+      "name": "COI（克罗地亚）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 479,
+      "name": "ROIR（俄罗斯）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 480,
+      "name": "单位根反演",
+      "parent": 5,
+      "type": 2
+    },
+    {
+      "id": 482,
+      "name": "平面几何",
+      "parent": 8,
+      "type": 2
+    },
+    {
+      "id": 483,
+      "name": "树的重心",
+      "parent": 230,
+      "type": 2
+    },
+    {
+      "id": 484,
+      "name": "保序回归",
+      "parent": 467,
+      "type": 2
+    },
+    {
+      "id": 485,
+      "name": "Code+",
+      "parent": 431,
+      "type": 3
+    },
+    {
+      "id": 486,
+      "name": "梦熊比赛",
+      "parent": 431,
+      "type": 3
+    },
+    {
+      "id": 487,
+      "name": "信息与未来",
+      "parent": 488,
+      "type": 3
+    },
+    {
+      "id": 488,
+      "name": "科创活动",
+      "parent": null,
+      "type": 3
+    },
+    {
+      "id": 489,
+      "name": "BCSP-X",
+      "parent": 488,
+      "type": 3
+    },
+    {
+      "id": 492,
+      "name": "小学活动",
+      "parent": 488,
+      "type": 3
+    },
+    {
+      "id": 493,
+      "name": "初中活动",
+      "parent": 488,
+      "type": 3
+    },
+    {
+      "id": 494,
+      "name": "科大国创杯",
+      "parent": 488,
+      "type": 3
+    },
+    {
+      "id": 495,
+      "name": "蓝桥杯青少年组",
+      "parent": 488,
+      "type": 3
+    },
+    {
+      "id": 496,
+      "name": "后缀平衡树",
+      "parent": 2,
+      "type": 2
+    },
+    {
+      "id": 497,
+      "name": "国内省市",
+      "parent": null,
+      "type": 1
+    },
+    {
+      "id": 498,
+      "name": "国内赛站",
+      "parent": null,
+      "type": 1
+    },
+    {
+      "id": 499,
+      "name": "国际赛区",
+      "parent": null,
+      "type": 1
+    },
+    {
+      "id": 500,
+      "name": "NERC/NEERC",
+      "parent": 499,
+      "type": 1
+    },
+    {
+      "id": 501,
+      "name": "SEERC",
+      "parent": 499,
+      "type": 1
+    },
+    {
+      "id": 502,
+      "name": "CERC",
+      "parent": 499,
+      "type": 1
+    },
+    {
+      "id": 503,
+      "name": "NWRRC",
+      "parent": 499,
+      "type": 1
+    },
+    {
+      "id": 504,
+      "name": "STL",
+      "parent": 110,
+      "type": 2
+    },
+    {
+      "id": 505,
+      "name": "INOI（伊朗）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 506,
+      "name": "UOI（乌克兰）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 507,
+      "name": "整体转移",
+      "parent": 146,
+      "type": 2
+    },
+    {
+      "id": 508,
+      "name": "斜率维护技巧 slope trick",
+      "parent": 146,
+      "type": 2
+    },
+    {
+      "id": 509,
+      "name": "EC Final",
+      "parent": 498,
+      "type": 1
+    },
+    {
+      "id": 510,
+      "name": "WF",
+      "parent": 499,
+      "type": 1
+    },
+    {
+      "id": 511,
+      "name": "NAC",
+      "parent": 499,
+      "type": 1
+    },
+    {
+      "id": 512,
+      "name": "JOISC/JOIST（日本）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 513,
+      "name": "COTS（克罗地亚）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 514,
+      "name": "Google Code Jam",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 515,
+      "name": "Moscow Olympiad",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 516,
+      "name": "CSPro",
+      "parent": 430,
+      "type": 3
+    },
+    {
+      "id": 518,
+      "name": "PO（瑞典）",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 519,
+      "name": "PAIO",
+      "parent": 428,
+      "type": 3
+    },
+    {
+      "id": 520,
+      "name": "杭州",
+      "parent": 498,
+      "type": 1
+    },
+    {
+      "id": 521,
+      "name": "昆明",
+      "parent": 498,
+      "type": 1
+    },
+    {
+      "id": 522,
+      "name": "西安",
+      "parent": 498,
+      "type": 1
+    },
+    {
+      "id": 523,
+      "name": "模板题",
+      "parent": 427,
+      "type": 3
+    },
+    {
+      "id": 524,
+      "name": "反悔贪心",
+      "parent": 308,
+      "type": 2
+    },
+    {
+      "id": 525,
+      "name": "闵可夫斯基和 Minkowski sum",
+      "parent": 8,
+      "type": 2
+    }
+  ],
+  "types": [
+    {
+      "color": "green-3",
+      "id": 1,
+      "name": "区域",
+      "order": 4,
+      "type": "Region"
+    },
+    {
+      "color": "lapis-3",
+      "id": 2,
+      "name": "算法",
+      "order": 1,
+      "type": "Algorithm"
+    },
+    {
+      "color": "cyan-3",
+      "id": 3,
+      "name": "来源",
+      "order": 2,
+      "type": "Origin"
+    },
+    {
+      "color": "blue-3",
+      "id": 4,
+      "name": "时间",
+      "order": 3,
+      "type": "Time"
+    },
+    {
+      "color": "orange-3",
+      "id": 5,
+      "name": "特殊题目",
+      "order": 5,
+      "type": "SpecialProblem"
+    },
+    {
+      "color": "grey-5",
+      "id": 6,
+      "name": "其他",
+      "order": null,
+      "type": "Others"
+    }
+  ]
+}
