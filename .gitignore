@@ -5,3 +5,5 @@ script/luogu_catalog.html
 issue.md
 script/judge_log.jsonl
 script/__pycache__/
+target/
+.luogu/

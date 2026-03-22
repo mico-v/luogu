@@ -1,6 +1,59 @@
 > this script is generate by gpt5-codex
 # Luogu 练习工作区
 
+## Rust CLI（新）
+
+项目已开始迁移到 Rust CLI，命令入口为 `luogu`。
+
+### 编译
+
+```bash
+cargo build
+```
+
+### 命令总览
+
+```bash
+cargo run -- --help
+```
+
+### 获取题目
+
+```bash
+cargo run -- fetch P1000
+```
+
+常用参数：
+
+- `--base-dir`：题目根目录（默认 `problem`）
+- `--force`：覆盖已生成文件
+
+### 本地评测
+
+```bash
+cargo run -- judge P1000
+```
+
+常用参数：
+
+- `--base-dir`：题目根目录（默认 `problem`）
+- `--source`：源文件名（默认 `main.cpp`）
+- `--timeout`：单测超时（秒）
+- `--std`：编译标准（默认 `c++17`）
+- `--cflags`：额外编译参数
+
+### 归纳查看
+
+```bash
+cargo run -- catalog
+cargo run -- catalog --history
+```
+
+数据会写入：
+
+- `.luogu/problems.json`：题目元数据
+- `.luogu/judge_log.jsonl`：评测历史
+
 本仓库用于离线收集洛谷题目信息、搭建本地练习目录，并提供样例评测与题目目录浏览工具。所有脚本位于 `script/`，题目文件位于 `problem/`。
 
 ## 环境准备
