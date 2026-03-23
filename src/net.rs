@@ -8,56 +8,58 @@ use std::time::Duration;
 const USER_AGENT: &str = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 const HOME_URL: &str = "https://www.luogu.com.cn/";
 
+fn pick_text<'a>(content: &'a Value, keys: &[&str]) -> &'a str {
+    for key in keys {
+        if let Some(text) = content.get(*key).and_then(Value::as_str) {
+            if !text.trim().is_empty() {
+                return text;
+            }
+        }
+    }
+    ""
+}
+
 fn build_markdown(problem: &Value) -> String {
     let content = problem.get("content").cloned().unwrap_or(Value::Null);
     let title = content
         .get("name")
         .and_then(Value::as_str)
         .unwrap_or("Unknown Title");
-    let background = content
-        .get("background")
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    let description = content
-        .get("description")
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    let input_format = content.get("inputFormat").and_then(Value::as_str).unwrap_or("");
-    let output_format = content
-        .get("outputFormat")
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    let hint = content.get("hint").and_then(Value::as_str).unwrap_or("");
+    let background = pick_text(&content, &["background"]);
+    let description = pick_text(&content, &["description", "statement"]);
+    let input_format = pick_text(&content, &["inputFormat", "formatI", "input"]);
+    let output_format = pick_text(&content, &["outputFormat", "formatO", "output"]);
+    let hint = pick_text(&content, &["hint"]);
 
     let mut out = String::new();
-    out.push_str(&format!("# {}\\n\\n", title));
+    out.push_str(&format!("# {}\n\n", title));
     if !background.trim().is_empty() {
-        out.push_str("## 题目背景\\n\\n");
+        out.push_str("## 题目背景\n\n");
         out.push_str(background);
-        out.push_str("\\n\\n");
+        out.push_str("\n\n");
     }
-    out.push_str("## 题目描述\\n\\n");
+    out.push_str("## 题目描述\n\n");
     out.push_str(description);
-    out.push_str("\\n\\n## 输入格式\\n\\n");
+    out.push_str("\n\n## 输入格式\n\n");
     out.push_str(input_format);
-    out.push_str("\\n\\n## 输出格式\\n\\n");
+    out.push_str("\n\n## 输出格式\n\n");
     out.push_str(output_format);
 
     if let Some(samples) = content.get("samples").and_then(Value::as_array) {
         for (idx, sample) in samples.iter().enumerate() {
             let input = sample.get(0).and_then(Value::as_str).unwrap_or("");
             let output = sample.get(1).and_then(Value::as_str).unwrap_or("");
-            out.push_str(&format!("\\n\\n## 样例 #{}\\n\\n", idx + 1));
-            out.push_str("### 输入\\n\\n```text\\n");
+            out.push_str(&format!("\n\n## 样例 #{}\n\n", idx + 1));
+            out.push_str("### 输入\n\n```text\n");
             out.push_str(input);
-            out.push_str("\\n```\\n\\n### 输出\\n\\n```text\\n");
+            out.push_str("\n```\n\n### 输出\n\n```text\n");
             out.push_str(output);
-            out.push_str("\\n```\\n");
+            out.push_str("\n```\n");
         }
     }
 
     if !hint.trim().is_empty() {
-        out.push_str("\\n\\n## 提示\\n\\n");
+        out.push_str("\n\n## 提示\n\n");
         out.push_str(hint);
         out.push('\n');
     }

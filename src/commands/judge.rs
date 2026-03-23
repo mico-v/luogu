@@ -3,8 +3,10 @@ use crate::models::{JudgeCompileInfo, JudgeLogEntry, JudgeTestResult};
 use crate::storage;
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
+use colored::Colorize;
 use std::fs;
 use std::io::Write;
+use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::Instant;
 use wait_timeout::ChildExt;
@@ -13,31 +15,187 @@ fn normalize_text(s: &str) -> Vec<&str> {
     s.split_whitespace().collect()
 }
 
-fn compile(problem_dir: &std::path::Path, source: &str, cpp_std: &str, cflags: &[String]) -> Result<JudgeCompileInfo> {
-    let src_path = problem_dir.join(source);
-    if !src_path.exists() {
-        return Err(anyhow!("source file not found: {}", src_path.display()));
+fn truncate_line(s: &str, limit: usize) -> String {
+    if s.chars().count() <= limit {
+        return s.to_string();
+    }
+    let mut out = String::new();
+    for (idx, ch) in s.chars().enumerate() {
+        if idx >= limit {
+            break;
+        }
+        out.push(ch);
+    }
+    out.push_str("...");
+    out
+}
+
+fn build_diff_message(expected: &str, actual: &str) -> String {
+    let exp_lines: Vec<&str> = expected.lines().collect();
+    let act_lines: Vec<&str> = actual.lines().collect();
+    let max_len = exp_lines.len().max(act_lines.len());
+
+    for i in 0..max_len {
+        let e = exp_lines.get(i).copied().unwrap_or("");
+        let a = act_lines.get(i).copied().unwrap_or("");
+        if e != a {
+            return format!(
+                "diff at line {}\nexpected: {}\nactual:   {}",
+                i + 1,
+                truncate_line(e, 120),
+                truncate_line(a, 120)
+            );
+        }
     }
 
+    // Fallback for whitespace/token differences.
+    format!(
+        "token mismatch\nexpected(tokens): {:?}\nactual(tokens):   {:?}",
+        normalize_text(expected),
+        normalize_text(actual)
+    )
+}
+
+fn parse_opt_level(raw: &str) -> Result<&'static str> {
+    let normalized = raw.trim().to_ascii_uppercase();
+    match normalized.as_str() {
+        "NONE" | "O0" => Ok("O0"),
+        "O1" => Ok("O1"),
+        "O2" => Ok("O2"),
+        "O3" => Ok("O3"),
+        "OS" => Ok("Os"),
+        _ => Err(anyhow!("unsupported --opt value: {} (supported: none/O1/O2/O3/Os)", raw)),
+    }
+}
+
+#[derive(Debug)]
+struct CompileConfig {
+    language: String,
+    source: String,
+    cpp_std: String,
+    optimization: String,
+}
+
+fn detect_language_and_source(problem_dir: &Path, language_override: Option<&str>, source_override: Option<&str>) -> Result<CompileConfig> {
+    // If source is explicitly specified, determine language from extension
+    if let Some(src) = source_override {
+        let source_path = problem_dir.join(src);
+        if !source_path.exists() {
+            return Err(anyhow!("source file not found: {}", source_path.display()));
+        }
+        let lang = if src.ends_with(".cpp") || src.ends_with(".cc") || src.ends_with(".cxx") {
+            "cpp"
+        } else if src.ends_with(".py") {
+            "python"
+        } else {
+            return Err(anyhow!("unsupported file extension: {}", src));
+        };
+        return Ok(CompileConfig {
+            language: lang.to_string(),
+            source: src.to_string(),
+            cpp_std: "c++17".to_string(),
+            optimization: "O2".to_string(),
+        });
+    }
+
+    // If language is explicitly specified, find appropriate source file
+    if let Some(lang) = language_override {
+        let (candidates, expected_lang) = if lang.starts_with("c++") || lang == "cpp" {
+            (vec!["main.cpp", "main.cc", "main.cxx"], "cpp")
+        } else if lang == "python" || lang == "py" {
+            (vec!["main.py"], "python")
+        } else {
+            return Err(anyhow!("unsupported language: {}", lang));
+        };
+
+        for candidate in candidates {
+            if problem_dir.join(candidate).exists() {
+                return Ok(CompileConfig {
+                    language: expected_lang.to_string(),
+                    source: candidate.to_string(),
+                    cpp_std: "c++17".to_string(),
+                    optimization: "O2".to_string(),
+                });
+            }
+        }
+        return Err(anyhow!("no source file found for language: {}", lang));
+    }
+
+    // Auto-detect: try cpp first, then python
+    if problem_dir.join("main.cpp").exists() {
+        return Ok(CompileConfig {
+            language: "cpp".to_string(),
+            source: "main.cpp".to_string(),
+            cpp_std: "c++17".to_string(),
+            optimization: "O2".to_string(),
+        });
+    }
+    if problem_dir.join("main.py").exists() {
+        return Ok(CompileConfig {
+            language: "python".to_string(),
+            source: "main.py".to_string(),
+            cpp_std: String::new(),
+            optimization: String::new(),
+        });
+    }
+
+    Err(anyhow!("no source file found (main.cpp or main.py)"))
+}
+
+fn compile_cpp(
+    problem_dir: &Path,
+    source: &str,
+    cpp_std: &str,
+    optimization: &str,
+    cflags: &[String],
+) -> Result<JudgeCompileInfo> {
+    let src_path = problem_dir.join(source);
     let bin_path = problem_dir.join(".luogu_solution");
     let start = Instant::now();
+
+    let opt_flag = parse_opt_level(optimization)?;
+
     let mut cmd = Command::new("g++");
     cmd.arg(&src_path)
-        .arg(format!("-std={cpp_std}"))
-        .arg("-O2")
+        .arg(format!("-std={}", cpp_std))
+        .arg(format!("-{}", opt_flag))
         .arg("-pipe")
         .arg("-Wall")
         .arg("-Wextra")
         .arg("-DLOCAL=1")
         .arg("-o")
         .arg(&bin_path);
+
     for flag in cflags {
         cmd.arg(flag);
     }
+
     let out = cmd.output().context("run g++")?;
     let elapsed = start.elapsed().as_secs_f64();
-
     let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+
+    Ok(JudgeCompileInfo {
+        success: out.status.success(),
+        elapsed_seconds: elapsed,
+        stderr,
+    })
+}
+
+fn compile_python(problem_dir: &Path, source: &str) -> Result<JudgeCompileInfo> {
+    let src_path = problem_dir.join(source);
+    let start = Instant::now();
+
+    // Just check if Python file is valid syntax
+    let out = Command::new("python3")
+        .arg("-m")
+        .arg("py_compile")
+        .arg(&src_path)
+        .output()
+        .context("run python syntax check")?;
+
+    let elapsed = start.elapsed().as_secs_f64();
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+
     Ok(JudgeCompileInfo {
         success: out.status.success(),
         elapsed_seconds: elapsed,
@@ -66,13 +224,33 @@ pub fn run(args: JudgeArgs) -> Result<()> {
         return Err(anyhow!("problem dir not found: {}", problem_dir.display()));
     }
 
-    println!("Judging {} @ {}", pid, problem_dir.display());
+    // Detect language and source file
+    let mut config = detect_language_and_source(&problem_dir, args.language.as_deref(), args.source.as_deref())?;
 
-    let compile_info = compile(&problem_dir, &args.source, &args.std, &args.cflags)?;
+    // Override C++ standard if specified
+    if let Some(std) = args.std {
+        config.cpp_std = std;
+    }
+
+    // Override optimization level if specified
+    if let Some(opt) = args.opt {
+        config.optimization = opt;
+    }
+
+    // Compile
+    let compile_info = if config.language == "cpp" {
+        let opt_flag = parse_opt_level(&config.optimization)?;
+        eprintln!("{} Compiling C++ with {} -{} ...", "⚙".cyan(), config.cpp_std, opt_flag);
+        compile_cpp(&problem_dir, &config.source, &config.cpp_std, &config.optimization, &args.cflags)?
+    } else {
+        eprintln!("{} Checking Python syntax ...", "⚙".cyan());
+        compile_python(&problem_dir, &config.source)?
+    };
+
     if !compile_info.success {
-        println!("Compile failed in {:.2}s", compile_info.elapsed_seconds);
+        println!("{} {} - Compilation failed in {:.2}s", "✗".red(), pid, compile_info.elapsed_seconds);
         if !compile_info.stderr.trim().is_empty() {
-            println!("{}", compile_info.stderr);
+            println!("\n{}", compile_info.stderr);
         }
         let entry = JudgeLogEntry {
             timestamp: Utc::now().to_rfc3339(),
@@ -87,15 +265,24 @@ pub fn run(args: JudgeArgs) -> Result<()> {
         storage::append_judge_log(&entry)?;
         std::process::exit(1);
     }
+    eprintln!("{} Compiled in {:.2}s", "✓".green(), compile_info.elapsed_seconds);
 
-    let bin_path = problem_dir.join(".luogu_solution");
     let samples = collect_samples(&problem_dir);
     if samples.is_empty() {
         return Err(anyhow!("no sample *.in files in {}", problem_dir.display()));
     }
 
+    eprintln!("{} Running {} samples ...", "▶".cyan(), samples.len());
+
     let mut tests = Vec::new();
     let mut pass_count = 0usize;
+
+    // Determine binary path based on language
+    let bin_path = if config.language == "cpp" {
+        problem_dir.join(".luogu_solution")
+    } else {
+        problem_dir.join(&config.source)
+    };
 
     for (input, output) in samples {
         let name = input
@@ -118,18 +305,27 @@ pub fn run(args: JudgeArgs) -> Result<()> {
         let expected = fs::read_to_string(&output).unwrap_or_default();
 
         let start = Instant::now();
-        let mut child = Command::new(&bin_path)
+
+        let mut cmd = if config.language == "cpp" {
+            Command::new(&bin_path)
+        } else {
+            let mut cmd = Command::new("python3");
+            cmd.arg(&bin_path);
+            cmd
+        };
+
+        let mut child = cmd
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .with_context(|| format!("spawn {}", bin_path.display()))?;
+            .with_context(|| format!("spawn {}", if config.language == "cpp" { bin_path.display().to_string() } else { "python3".to_string() }))?;
 
         if let Some(stdin) = child.stdin.as_mut() {
             stdin.write_all(input_text.as_bytes())?;
         }
 
-        let timeout = std::time::Duration::from_secs_f64(args.timeout.unwrap_or(3.0));
+        let timeout = std::time::Duration::from_secs_f64(args.timeout);
         let status = child.wait_timeout(timeout)?;
         let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
 
@@ -140,7 +336,7 @@ pub fn run(args: JudgeArgs) -> Result<()> {
                 name,
                 status: "TLE".to_string(),
                 time_ms: Some(elapsed_ms),
-                message: format!("timeout after {:.2}s", timeout.as_secs_f64()),
+                message: format!("timeout after {:.2}s", args.timeout),
             }
         } else {
             let out = child.wait_with_output()?;
@@ -161,21 +357,20 @@ pub fn run(args: JudgeArgs) -> Result<()> {
                     message: "accepted".to_string(),
                 }
             } else {
+                let diff_msg = build_diff_message(&expected, &actual);
                 JudgeTestResult {
                     name,
                     status: "WA".to_string(),
                     time_ms: Some(elapsed_ms),
-                    message: "wrong answer".to_string(),
+                    message: format!("wrong answer\n{}", diff_msg),
                 }
             }
         };
-        println!(
-            "[{}] {} | {:.2} ms | {}",
-            test.name,
-            test.status,
-            test.time_ms.unwrap_or(0.0),
-            test.message
-        );
+        if test.status != "AC" {
+            println!("[{}] {}", test.name, test.status);
+            println!("{}", test.message);
+            println!();
+        }
         tests.push(test);
     }
 
@@ -195,7 +390,12 @@ pub fn run(args: JudgeArgs) -> Result<()> {
     };
     storage::append_judge_log(&entry)?;
 
-    println!("Summary: {} ({}/{})", status, pass_count, test_count);
+    println!();
+    if all_pass {
+        println!("{} {} - {}/{} {} - All tests passed!", "✓".green(), pid, pass_count, test_count, "AC".green());
+    } else {
+        println!("{} {} - {}/{} {} - Some tests failed", "✗".red(), pid, pass_count, test_count, "FAILED".red());
+    }
 
     if all_pass {
         Ok(())

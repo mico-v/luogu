@@ -20,5 +20,6 @@ fn run() -> Result<()> {
         cli::Commands::Fetch(args) => commands::fetch::run(args),
         cli::Commands::Judge(args) => commands::judge::run(args),
         cli::Commands::Catalog(args) => commands::catalog::run(args),
+        cli::Commands::Serve(args) => commands::serve::run(args),
     }
 }

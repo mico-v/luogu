@@ -16,6 +16,8 @@ pub enum Commands {
     Judge(JudgeArgs),
     /// Show problem/history summary in terminal.
     Catalog(CatalogArgs),
+    /// Start local web server for problem catalog/history.
+    Serve(ServeArgs),
 }
 
 #[derive(Args, Debug)]
@@ -37,15 +39,21 @@ pub struct JudgeArgs {
     /// Root folder containing problem directories.
     #[arg(long, default_value = "problem")]
     pub base_dir: PathBuf,
-    /// Source filename in problem directory.
-    #[arg(long, default_value = "main.cpp")]
-    pub source: String,
-    /// Timeout in seconds for each sample.
+    /// Programming language (auto-detect: cpp/python based on source file).
     #[arg(long)]
-    pub timeout: Option<f64>,
-    /// C++ standard.
-    #[arg(long, default_value = "c++17")]
-    pub std: String,
+    pub language: Option<String>,
+    /// Source filename in problem directory (default: main.cpp or main.py).
+    #[arg(long)]
+    pub source: Option<String>,
+    /// Timeout in seconds for each sample.
+    #[arg(long, default_value_t = 3.0)]
+    pub timeout: f64,
+    /// C++ standard (c++11/14/17/20/23, default: c++17).
+    #[arg(long)]
+    pub std: Option<String>,
+    /// Optimization level (none/O1/O2/O3/Os, default: O2).
+    #[arg(long)]
+    pub opt: Option<String>,
     /// Extra compile flags.
     #[arg(long, num_args = 0.., value_delimiter = ' ')]
     pub cflags: Vec<String>,
@@ -62,4 +70,17 @@ pub struct CatalogArgs {
     /// Maximum history entries.
     #[arg(long, default_value_t = 20)]
     pub limit: usize,
+}
+
+#[derive(Args, Debug)]
+pub struct ServeArgs {
+    /// HTTP bind host.
+    #[arg(long, default_value = "127.0.0.1")]
+    pub host: String,
+    /// HTTP bind port.
+    #[arg(long, default_value_t = 8787)]
+    pub port: u16,
+    /// Max history records returned by API.
+    #[arg(long, default_value_t = 200)]
+    pub history_limit: usize,
 }
