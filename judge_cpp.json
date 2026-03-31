@@ -1,0 +1,6 @@
+{
+  "compiler": "g++",
+  "cpp_standard": "c++20",
+  "optimization": "O2",
+  "extra_flags": []
+}

@@ -39,21 +39,12 @@ pub struct JudgeArgs {
     /// Root folder containing problem directories.
     #[arg(long, default_value = "problem")]
     pub base_dir: PathBuf,
-    /// Programming language (auto-detect: cpp/python based on source file).
-    #[arg(long)]
-    pub language: Option<String>,
-    /// Source filename in problem directory (default: main.cpp or main.py).
+    /// C++ source filename in problem directory (default: main.cpp/main.cc/main.cxx).
     #[arg(long)]
     pub source: Option<String>,
     /// Timeout in seconds for each sample.
     #[arg(long, default_value_t = 3.0)]
     pub timeout: f64,
-    /// C++ standard (c++11/14/17/20/23, default: c++17).
-    #[arg(long)]
-    pub std: Option<String>,
-    /// Optimization level (none/O1/O2/O3/Os, default: O2).
-    #[arg(long)]
-    pub opt: Option<String>,
     /// Extra compile flags.
     #[arg(long, num_args = 0.., value_delimiter = ' ')]
     pub cflags: Vec<String>,

@@ -39,7 +39,7 @@ pub fn run(args: FetchArgs) -> Result<()> {
     if !problem_path.join("main.cpp").exists() || args.force {
         fs::write(
             problem_path.join("main.cpp"),
-            b"#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n\n    return 0;\n}\n",
+            b"#include <iostream>\nusing namespace std;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n\n    return 0;\n}\n",
         )?;
     }
     for (idx, (input, output)) in problem.samples.iter().enumerate() {

@@ -1,4 +1,4 @@
-.PHONY: help build install uninstall fetch judge catalog clean
+.PHONY: help build install uninstall fetch judge catalog clean show-config
 
 help:
 	@echo "Luogu CLI - 洛谷本地竞赛练习工具"
@@ -10,10 +10,8 @@ help:
 	@echo ""
 	@echo "📝 在项目目录中使用:"
 	@echo "  make run-fetch P=P1000        获取问题 P1000"
-	@echo "  make run-judge P=P1000        评测问题 P1000 (自动检测语言)"
-	@echo "  make run-judge-python P=P1000 评测 Python 版本"
-	@echo "  make run-judge-opt P=P1000    O3 优化级别"
-	@echo "  make run-judge-cpp20 P=P1000  C++20 标准"
+	@echo "  make run-judge P=P1000        评测问题 P1000 (仅 C++)"
+	@echo "  make show-config              查看/初始化 C++ 评测配置"
 	@echo "  make run-catalog              列出所有问题"
 	@echo "  make run-catalog-history      查看评测历史"
 	@echo ""
@@ -40,17 +38,12 @@ run-judge:
 	@test -n "$(P)" || (echo "用法: make run-judge P=P1000"; exit 1)
 	@cargo run --release -- judge $(P)
 
-run-judge-python:
-	@test -n "$(P)" || (echo "用法: make run-judge-python P=P1000"; exit 1)
-	@cargo run --release -- judge $(P) --language python
-
-run-judge-opt:
-	@test -n "$(P)" || (echo "用法: make run-judge-opt P=P1000"; exit 1)
-	@cargo run --release -- judge $(P) --opt O3
-
-run-judge-cpp20:
-	@test -n "$(P)" || (echo "用法: make run-judge-cpp20 P=P1000"; exit 1)
-	@cargo run --release -- judge $(P) --std c++20 --opt O3
+show-config:
+	@if [ ! -f judge_cpp.json ]; then \
+		echo '{"compiler":"g++","cpp_standard":"c++17","optimization":"O2","extra_flags":[]}' > judge_cpp.json; \
+		echo "已初始化 judge_cpp.json"; \
+	fi
+	@cat judge_cpp.json
 
 run-catalog:
 	@cargo run --release -- catalog

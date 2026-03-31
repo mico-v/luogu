@@ -4,12 +4,15 @@ use crate::storage;
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use colored::Colorize;
+use serde::Deserialize;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::Instant;
 use wait_timeout::ChildExt;
+
+const CPP_CONFIG_FILE: &str = "judge_cpp.json";
 
 fn normalize_text(s: &str) -> Vec<&str> {
     s.split_whitespace().collect()
@@ -81,97 +84,121 @@ fn parse_opt_level(raw: &str) -> Result<&'static str> {
     }
 }
 
+fn parse_cpp_standard(raw: &str) -> Result<&'static str> {
+    let normalized = raw.trim().to_ascii_lowercase();
+    match normalized.as_str() {
+        "c++11" => Ok("c++11"),
+        "c++14" => Ok("c++14"),
+        "c++17" => Ok("c++17"),
+        "c++20" => Ok("c++20"),
+        "c++23" => Ok("c++23"),
+        _ => Err(anyhow!(
+            "unsupported cpp_standard value: {} (supported: c++11/c++14/c++17/c++20/c++23)",
+            raw
+        )),
+    }
+}
+
 #[derive(Debug)]
 struct CompileConfig {
-    language: String,
+    compiler: String,
     source: String,
     cpp_std: String,
     optimization: String,
+    extra_flags: Vec<String>,
 }
 
-fn detect_language_and_source(problem_dir: &Path, language_override: Option<&str>, source_override: Option<&str>) -> Result<CompileConfig> {
-    // If source is explicitly specified, determine language from extension
+#[derive(Debug, Deserialize)]
+struct CppJudgeConfigFile {
+    compiler: Option<String>,
+    cpp_standard: Option<String>,
+    optimization: Option<String>,
+    extra_flags: Option<Vec<String>>,
+}
+
+fn default_cpp_config_text() -> Result<String> {
+    let default = serde_json::json!({
+        "compiler": "g++",
+        "cpp_standard": "c++17",
+        "optimization": "O2",
+        "extra_flags": []
+    });
+    Ok(format!("{}\n", serde_json::to_string_pretty(&default)?))
+}
+
+fn load_cpp_compile_config() -> Result<CompileConfig> {
+    let path = Path::new(CPP_CONFIG_FILE);
+    if !path.exists() {
+        fs::write(path, default_cpp_config_text()?)
+            .with_context(|| format!("write default {}", path.display()))?;
+    }
+
+    let text = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    let file_cfg: CppJudgeConfigFile =
+        serde_json::from_str(&text).with_context(|| format!("parse {}", path.display()))?;
+
+    let compiler = file_cfg
+        .compiler
+        .unwrap_or_else(|| "g++".to_string())
+        .trim()
+        .to_string();
+    if compiler.is_empty() {
+        return Err(anyhow!("compiler cannot be empty in {}", path.display()));
+    }
+
+    let cpp_std_raw = file_cfg
+        .cpp_standard
+        .unwrap_or_else(|| "c++17".to_string());
+    let cpp_std = parse_cpp_standard(&cpp_std_raw)?.to_string();
+
+    let opt_raw = file_cfg
+        .optimization
+        .unwrap_or_else(|| "O2".to_string());
+    let optimization = parse_opt_level(&opt_raw)?.to_string();
+
+    Ok(CompileConfig {
+        compiler,
+        source: String::new(),
+        cpp_std,
+        optimization,
+        extra_flags: file_cfg.extra_flags.unwrap_or_default(),
+    })
+}
+
+fn detect_cpp_source(problem_dir: &Path, source_override: Option<&str>) -> Result<String> {
     if let Some(src) = source_override {
         let source_path = problem_dir.join(src);
         if !source_path.exists() {
             return Err(anyhow!("source file not found: {}", source_path.display()));
         }
-        let lang = if src.ends_with(".cpp") || src.ends_with(".cc") || src.ends_with(".cxx") {
-            "cpp"
-        } else if src.ends_with(".py") {
-            "python"
-        } else {
+        if !(src.ends_with(".cpp") || src.ends_with(".cc") || src.ends_with(".cxx")) {
             return Err(anyhow!("unsupported file extension: {}", src));
-        };
-        return Ok(CompileConfig {
-            language: lang.to_string(),
-            source: src.to_string(),
-            cpp_std: "c++17".to_string(),
-            optimization: "O2".to_string(),
-        });
-    }
-
-    // If language is explicitly specified, find appropriate source file
-    if let Some(lang) = language_override {
-        let (candidates, expected_lang) = if lang.starts_with("c++") || lang == "cpp" {
-            (vec!["main.cpp", "main.cc", "main.cxx"], "cpp")
-        } else if lang == "python" || lang == "py" {
-            (vec!["main.py"], "python")
-        } else {
-            return Err(anyhow!("unsupported language: {}", lang));
-        };
-
-        for candidate in candidates {
-            if problem_dir.join(candidate).exists() {
-                return Ok(CompileConfig {
-                    language: expected_lang.to_string(),
-                    source: candidate.to_string(),
-                    cpp_std: "c++17".to_string(),
-                    optimization: "O2".to_string(),
-                });
-            }
         }
-        return Err(anyhow!("no source file found for language: {}", lang));
+        return Ok(src.to_string());
     }
 
-    // Auto-detect: try cpp first, then python
-    if problem_dir.join("main.cpp").exists() {
-        return Ok(CompileConfig {
-            language: "cpp".to_string(),
-            source: "main.cpp".to_string(),
-            cpp_std: "c++17".to_string(),
-            optimization: "O2".to_string(),
-        });
-    }
-    if problem_dir.join("main.py").exists() {
-        return Ok(CompileConfig {
-            language: "python".to_string(),
-            source: "main.py".to_string(),
-            cpp_std: String::new(),
-            optimization: String::new(),
-        });
+    for candidate in ["main.cpp", "main.cc", "main.cxx"] {
+        if problem_dir.join(candidate).exists() {
+            return Ok(candidate.to_string());
+        }
     }
 
-    Err(anyhow!("no source file found (main.cpp or main.py)"))
+    Err(anyhow!("no C++ source file found (main.cpp/main.cc/main.cxx)"))
 }
 
 fn compile_cpp(
     problem_dir: &Path,
-    source: &str,
-    cpp_std: &str,
-    optimization: &str,
+    cfg: &CompileConfig,
     cflags: &[String],
 ) -> Result<JudgeCompileInfo> {
-    let src_path = problem_dir.join(source);
+    let src_path = problem_dir.join(&cfg.source);
     let bin_path = problem_dir.join(".luogu_solution");
     let start = Instant::now();
 
-    let opt_flag = parse_opt_level(optimization)?;
-
-    let mut cmd = Command::new("g++");
+    let mut cmd = Command::new(&cfg.compiler);
     cmd.arg(&src_path)
-        .arg(format!("-std={}", cpp_std))
-        .arg(format!("-{}", opt_flag))
+        .arg(format!("-std={}", cfg.cpp_std))
+        .arg(format!("-{}", cfg.optimization))
         .arg("-pipe")
         .arg("-Wall")
         .arg("-Wextra")
@@ -179,33 +206,17 @@ fn compile_cpp(
         .arg("-o")
         .arg(&bin_path);
 
+    for flag in &cfg.extra_flags {
+        cmd.arg(flag);
+    }
+
     for flag in cflags {
         cmd.arg(flag);
     }
 
-    let out = cmd.output().context("run g++")?;
-    let elapsed = start.elapsed().as_secs_f64();
-    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-
-    Ok(JudgeCompileInfo {
-        success: out.status.success(),
-        elapsed_seconds: elapsed,
-        stderr,
-    })
-}
-
-fn compile_python(problem_dir: &Path, source: &str) -> Result<JudgeCompileInfo> {
-    let src_path = problem_dir.join(source);
-    let start = Instant::now();
-
-    // Just check if Python file is valid syntax
-    let out = Command::new("python3")
-        .arg("-m")
-        .arg("py_compile")
-        .arg(&src_path)
+    let out = cmd
         .output()
-        .context("run python syntax check")?;
-
+        .with_context(|| format!("run compiler {}", cfg.compiler))?;
     let elapsed = start.elapsed().as_secs_f64();
     let stderr = String::from_utf8_lossy(&out.stderr).to_string();
 
@@ -237,28 +248,17 @@ pub fn run(args: JudgeArgs) -> Result<()> {
         return Err(anyhow!("problem dir not found: {}", problem_dir.display()));
     }
 
-    // Detect language and source file
-    let mut config = detect_language_and_source(&problem_dir, args.language.as_deref(), args.source.as_deref())?;
+    let mut config = load_cpp_compile_config()?;
+    config.source = detect_cpp_source(&problem_dir, args.source.as_deref())?;
 
-    // Override C++ standard if specified
-    if let Some(std) = args.std {
-        config.cpp_std = std;
-    }
-
-    // Override optimization level if specified
-    if let Some(opt) = args.opt {
-        config.optimization = opt;
-    }
-
-    // Compile
-    let compile_info = if config.language == "cpp" {
-        let opt_flag = parse_opt_level(&config.optimization)?;
-        eprintln!("{} Compiling C++ with {} -{} ...", "⚙".cyan(), config.cpp_std, opt_flag);
-        compile_cpp(&problem_dir, &config.source, &config.cpp_std, &config.optimization, &args.cflags)?
-    } else {
-        eprintln!("{} Checking Python syntax ...", "⚙".cyan());
-        compile_python(&problem_dir, &config.source)?
-    };
+    eprintln!(
+        "{} Compiling C++ with {} -{} ({}) ...",
+        "⚙".cyan(),
+        config.cpp_std,
+        config.optimization,
+        config.compiler
+    );
+    let compile_info = compile_cpp(&problem_dir, &config, &args.cflags)?;
 
     if !compile_info.success {
         println!("{} {} - Compilation failed in {:.2}s", "✗".red(), pid, compile_info.elapsed_seconds);
@@ -290,12 +290,7 @@ pub fn run(args: JudgeArgs) -> Result<()> {
     let mut tests = Vec::new();
     let mut pass_count = 0usize;
 
-    // Determine binary path based on language
-    let bin_path = if config.language == "cpp" {
-        problem_dir.join(".luogu_solution")
-    } else {
-        problem_dir.join(&config.source)
-    };
+    let bin_path = problem_dir.join(".luogu_solution");
 
     for (input, output) in samples {
         let name = input
@@ -319,20 +314,14 @@ pub fn run(args: JudgeArgs) -> Result<()> {
 
         let start = Instant::now();
 
-        let mut cmd = if config.language == "cpp" {
-            Command::new(&bin_path)
-        } else {
-            let mut cmd = Command::new("python3");
-            cmd.arg(&bin_path);
-            cmd
-        };
+        let mut cmd = Command::new(&bin_path);
 
         let mut child = cmd
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .with_context(|| format!("spawn {}", if config.language == "cpp" { bin_path.display().to_string() } else { "python3".to_string() }))?;
+            .with_context(|| format!("spawn {}", bin_path.display()))?;
 
         if let Some(stdin) = child.stdin.as_mut() {
             stdin.write_all(input_text.as_bytes())?;
