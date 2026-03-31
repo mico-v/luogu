@@ -35,17 +35,30 @@ fn build_diff_message(expected: &str, actual: &str) -> String {
     let act_lines: Vec<&str> = actual.lines().collect();
     let max_len = exp_lines.len().max(act_lines.len());
 
+    let mut diff_lines = Vec::new();
+    diff_lines.push("--- expected".to_string());
+    diff_lines.push("+++ actual".to_string());
+
     for i in 0..max_len {
         let e = exp_lines.get(i).copied().unwrap_or("");
         let a = act_lines.get(i).copied().unwrap_or("");
-        if e != a {
-            return format!(
-                "diff at line {}\nexpected: {}\nactual:   {}",
-                i + 1,
-                truncate_line(e, 120),
-                truncate_line(a, 120)
-            );
+        if e == a {
+            continue;
         }
+        if !e.is_empty() {
+            diff_lines.push(format!("-{:>4} | {}", i + 1, truncate_line(e, 200)));
+        } else {
+            diff_lines.push(format!("-{:>4} | <EOF>", i + 1));
+        }
+        if !a.is_empty() {
+            diff_lines.push(format!("+{:>4} | {}", i + 1, truncate_line(a, 200)));
+        } else {
+            diff_lines.push(format!("+{:>4} | <EOF>", i + 1));
+        }
+    }
+
+    if diff_lines.len() > 2 {
+        return diff_lines.join("\n");
     }
 
     // Fallback for whitespace/token differences.

@@ -19,7 +19,7 @@ fn pick_text<'a>(content: &'a Value, keys: &[&str]) -> &'a str {
     ""
 }
 
-fn build_markdown(problem: &Value) -> String {
+fn build_markdown(problem: &Value, samples: &[(String, String)]) -> String {
     let content = problem.get("content").cloned().unwrap_or(Value::Null);
     let title = content
         .get("name")
@@ -45,17 +45,13 @@ fn build_markdown(problem: &Value) -> String {
     out.push_str("\n\n## 输出格式\n\n");
     out.push_str(output_format);
 
-    if let Some(samples) = content.get("samples").and_then(Value::as_array) {
-        for (idx, sample) in samples.iter().enumerate() {
-            let input = sample.get(0).and_then(Value::as_str).unwrap_or("");
-            let output = sample.get(1).and_then(Value::as_str).unwrap_or("");
-            out.push_str(&format!("\n\n## 样例 #{}\n\n", idx + 1));
-            out.push_str("### 输入\n\n```text\n");
-            out.push_str(input);
-            out.push_str("\n```\n\n### 输出\n\n```text\n");
-            out.push_str(output);
-            out.push_str("\n```\n");
-        }
+    for (idx, (input, output)) in samples.iter().enumerate() {
+        out.push_str(&format!("\n\n## 样例 #{}\n\n", idx + 1));
+        out.push_str("### 输入\n\n```text\n");
+        out.push_str(input);
+        out.push_str("\n```\n\n### 输出\n\n```text\n");
+        out.push_str(output);
+        out.push_str("\n```\n");
     }
 
     if !hint.trim().is_empty() {
@@ -167,7 +163,7 @@ pub fn fetch_problem(pid: &str) -> Result<ParsedProblem> {
         limits_time_ms: time_limit,
         limits_memory_kb: memory_limit,
         tags,
-        markdown: build_markdown(problem),
+        markdown: build_markdown(problem, &samples),
         samples,
     })
 }
