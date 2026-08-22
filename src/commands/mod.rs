@@ -1,4 +1,13 @@
 pub mod catalog;
+pub mod contest;
 pub mod fetch;
 pub mod judge;
+pub mod rank;
+pub mod record;
+pub mod search;
 pub mod serve;
+pub mod solution;
+pub mod submit;
+pub mod tags;
+pub mod training;
+pub mod user;

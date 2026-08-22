@@ -1,4 +1,5 @@
 use crate::cli::FetchArgs;
+use crate::commands::training;
 use crate::models::ProblemRecord;
 use crate::{net, storage};
 use anyhow::{Context, Result};
@@ -35,18 +36,7 @@ pub fn run(args: FetchArgs) -> Result<()> {
     }
 
     fs::create_dir_all(&problem_path).with_context(|| format!("create {}", problem_path.display()))?;
-    fs::write(problem_path.join("T.md"), problem.markdown.as_bytes())?;
-    if !problem_path.join("main.cpp").exists() || args.force {
-        fs::write(
-            problem_path.join("main.cpp"),
-            b"#include <iostream>\nusing namespace std;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n\n    return 0;\n}\n",
-        )?;
-    }
-    for (idx, (input, output)) in problem.samples.iter().enumerate() {
-        let i = idx + 1;
-        fs::write(problem_path.join(format!("sample{i}.in")), input)?;
-        fs::write(problem_path.join(format!("sample{i}.out")), output)?;
-    }
+    training::save_problem_files(&problem, &args.base_dir, args.force)?;
 
     let mut map: BTreeMap<String, ProblemRecord> = storage::load_problem_map()?;
     let record = ProblemRecord {
@@ -66,8 +56,16 @@ pub fn run(args: FetchArgs) -> Result<()> {
     println!();
     println!("{} {} {} {}", "✓".green(), problem.pid, problem.title, format!("[{}]", difficulty_label(problem.difficulty)).cyan());
     println!("{} {}", "📁".normal(), problem_path.display());
-    println!("{} {} samples | {} time | {} memory", "📊".normal(), problem.samples.len(), 
-        format!("{}ms", problem.limits_time_ms.unwrap_or(0)).green(), 
+    print!("{} {} samples | {} time | {} memory", "📊".normal(), problem.samples.len(),
+        format!("{}ms", problem.limits_time_ms.unwrap_or(0)).green(),
         format!("{}KB", problem.limits_memory_kb.unwrap_or(0)).green());
+
+    if let Some(ref provider) = problem.provider {
+        print!(" | {}", format!("by {provider}").yellow());
+    }
+    if let (Some(ac), Some(sub)) = (problem.total_accepted, problem.total_submit) {
+        print!(" | AC {}/{}", ac.to_string().green(), sub.to_string().yellow());
+    }
+    println!();
     Ok(())
 }

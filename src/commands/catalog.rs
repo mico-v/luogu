@@ -65,8 +65,8 @@ pub fn run(args: CatalogArgs) -> Result<()> {
             .map(|v| format!("{:.2}MB", v as f64 / 1024.0))
             .unwrap_or_else(|| "n/a".to_string());
         
-        let title = if rec.title.len() > 28 {
-            format!("{}...", &rec.title[..25])
+        let title = if rec.title.chars().count() > 28 {
+            format!("{}...", rec.title.chars().take(25).collect::<String>())
         } else {
             rec.title.clone()
         };
