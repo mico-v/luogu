@@ -92,8 +92,9 @@ fn parse_cpp_standard(raw: &str) -> Result<&'static str> {
         "c++17" => Ok("c++17"),
         "c++20" => Ok("c++20"),
         "c++23" => Ok("c++23"),
+        "c++26" => Ok("c++26"),
         _ => Err(anyhow!(
-            "unsupported cpp_standard value: {} (supported: c++11/c++14/c++17/c++20/c++23)",
+            "unsupported cpp_standard value: {} (supported: c++11/c++14/c++17/c++20/c++23/c++26)",
             raw
         )),
     }

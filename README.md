@@ -186,8 +186,47 @@ luogu rank --type elo
 - `.luogu/problems.json`：题目元数据
 - `.luogu/judge_log.jsonl`：评测历史
 - `problem/PID/T.md`：题目描述
-- `problem/PID/main.cpp`：默认代码模板
 - `problem/PID/sampleN.in/out`：样例数据
+- `problem/PID/main.cpp`：仅在配置了代码模板时生成
+
+## 项目配置文件
+
+`luogu_config.json` 管理项目行为（首次执行 `luogu fetch` / `luogu training` 时自动生成）：
+
+```json
+{
+  "template": {
+    "code": "",
+    "path": ""
+  }
+}
+```
+
+- `template.code`：内联的初始代码。设置后会在新建题目时写入 `problem/PID/main.cpp`。
+- `template.path`：初始代码模板文件路径（绝对路径，或相对 `luogu_config.json` 所在目录）。`code` 非空时优先使用 `code`。
+- 两者都为空（默认）时**不生成** `main.cpp`。
+
+示例（内联）：
+
+```json
+{
+  "template": {
+    "code": "#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    return 0;\n}\n",
+    "path": ""
+  }
+}
+```
+
+示例（指向模板文件）：
+
+```json
+{
+  "template": {
+    "code": "",
+    "path": "templates/main.cpp"
+  }
+}
+```
 
 ## C++ 编译配置文件
 
