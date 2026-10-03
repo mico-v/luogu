@@ -126,6 +126,23 @@ luogu solution P1000 --index 1
 luogu solution P1000 --save -i 1
 ```
 
+### 登录洛谷
+
+```bash
+# 交互登录：验证码会直接以彩色字符显示在终端
+luogu login
+
+# 从浏览器复制 Cookie 后导入（也可以使用 --cookie）
+luogu login --cookie-file ~/.cookie
+
+# 清除本地保存的会话
+luogu logout
+```
+
+登录成功后，会话保存在 `.luogu/session.json`，`submit`、`solution`、`record`
+等需要登录的命令会自动使用该会话。Cookie 必须同时包含 `_uid` 和
+`__client_id`；请勿将会话文件提交到版本库。
+
 ### 提交代码
 
 ```bash
@@ -185,8 +202,9 @@ luogu rank --type elo
 
 - `.luogu/problems.json`：题目元数据
 - `.luogu/judge_log.jsonl`：评测历史
+- `.luogu/session.json`：登录会话（Unix 下权限为 `0600`）
 - `problem/PID/T.md`：题目描述
-- `problem/PID/sampleN.in/out`：样例数据
+- `problem/PID/testcases/main.N.in` / `main.N.ans`：样例数据（`N` 从 0 开始）
 - `problem/PID/main.cpp`：仅在配置了代码模板时生成
 
 ## 项目配置文件
@@ -195,16 +213,26 @@ luogu rank --type elo
 
 ```json
 {
+  "source": "main.cpp",
   "template": {
     "code": "",
     "path": ""
+  },
+  "testcases": {
+    "directory": "testcases",
+    "input_format": "$(FNOEXT).$(TCNUM).in",
+    "output_format": "$(FNOEXT).$(TCNUM).ans"
   }
 }
 ```
 
-- `template.code`：内联的初始代码。设置后会在新建题目时写入 `problem/PID/main.cpp`。
+- `source`：新建题目时生成的源文件名（默认 `main.cpp`），其主名用于样例名里的 `$(FNOEXT)`；`luogu judge` 也会优先查找该文件。
+- `template.code`：内联的初始代码。设置后会在新建题目时写入 `problem/PID/<source>`。
 - `template.path`：初始代码模板文件路径（绝对路径，或相对 `luogu_config.json` 所在目录）。`code` 非空时优先使用 `code`。
 - 两者都为空（默认）时**不生成** `main.cpp`。
+- `testcases.directory`：样例所在子目录（相对题目目录）。
+- `testcases.input_format` / `output_format`：样例文件名模板，支持 `$(FNOEXT)`（源文件主名，默认 `main`）与 `$(TCNUM)`（编号，从 0 开始）。
+- 默认取值与 competitest.nvim 一致；`luogu fetch` / `training` / `contest` 按该模板写入，`luogu judge` 按 `input_format` 扫描目录并用 `output_format` 查找期望输出。省略 `testcases` 时使用上面的默认值。
 
 示例（内联）：
 
@@ -243,6 +271,6 @@ luogu rank --type elo
 
 ## 注意事项
 
-- **提交功能**：需要浏览器登录洛谷后，复制 cookie 到 `~/.cookie` 或使用浏览器环境。CSRF 令牌会自动获取，但在某些情况下可能需要手动提供。
+- **提交功能**：先运行 `luogu login`，或通过 `luogu login --cookie-file <文件>` 导入浏览器 Cookie。CSRF 令牌会自动获取，但在某些情况下可能需要手动提供。
 - **API 限流**：请合理使用，避免短时间内大量请求。
 - **题单/比赛导入**：会依次 fetch 每道题目，速度取决于网络状况。

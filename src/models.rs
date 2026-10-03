@@ -603,6 +603,35 @@ pub struct SubmitResponse {
     pub rid: i64,
 }
 
+// ── Authentication API ──────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+pub struct LoginRequest {
+    pub username: String,
+    pub password: String,
+    pub captcha: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoginResponse {
+    pub username: String,
+    #[serde(rename = "syncToken")]
+    pub sync_token: String,
+    pub locked: bool,
+    #[serde(rename = "redirectTo")]
+    pub redirect_to: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ApiError {
+    #[serde(rename = "errorCode")]
+    pub error_code: Option<i64>,
+    #[serde(rename = "errorType")]
+    pub error_type: Option<String>,
+    #[serde(rename = "errorMessage")]
+    pub error_message: Option<String>,
+}
+
 // ── Config API ──────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]

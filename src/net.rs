@@ -4,10 +4,13 @@ use crate::models::*;
 use anyhow::{anyhow, Context, Result};
 use regex::Regex;
 use reqwest::blocking::Client;
-use reqwest::header::{HeaderMap, HeaderValue, REFERER};
+use reqwest::cookie::{CookieStore, Jar};
+use reqwest::header::{HeaderMap, HeaderValue, COOKIE, REFERER};
+use reqwest::redirect::Policy;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
+use std::sync::Arc;
 use std::time::Duration;
 
 const USER_AGENT: &str =
@@ -16,13 +19,40 @@ const BASE_URL: &str = "https://www.luogu.com.cn";
 
 // ── HTTP client ─────────────────────────────────────────────────
 
-fn build_client() -> Result<Client> {
+fn build_client_with_cookie(cookie: Option<&str>) -> Result<Client> {
+    build_client_with_cookie_and_policy(cookie, Policy::limited(10))
+}
+
+fn build_client_with_cookie_and_policy(cookie: Option<&str>, redirect: Policy) -> Result<Client> {
+    let mut headers = HeaderMap::new();
+    if let Some(cookie) = cookie {
+        headers.insert(COOKIE, HeaderValue::from_str(cookie)?);
+    }
+
     Client::builder()
         .user_agent(USER_AGENT)
         .timeout(Duration::from_secs(30))
         .cookie_store(true)
+        .default_headers(headers)
+        .redirect(redirect)
         .build()
         .context("build http client")
+}
+
+fn build_client() -> Result<Client> {
+    let cookie = crate::auth::load_session()?.map(|session| session.cookie);
+    build_client_with_cookie(cookie.as_deref())
+}
+
+fn build_login_client() -> Result<(Client, Arc<Jar>)> {
+    let jar = Arc::new(Jar::default());
+    let client = Client::builder()
+        .user_agent(USER_AGENT)
+        .timeout(Duration::from_secs(30))
+        .cookie_provider(jar.clone())
+        .build()
+        .context("build login client")?;
+    Ok((client, jar))
 }
 
 fn lentille_headers() -> Result<HeaderMap> {
@@ -37,6 +67,116 @@ fn post_headers(csrf: &str) -> Result<HeaderMap> {
     h.insert("x-csrf-token", HeaderValue::from_str(csrf)?);
     h.insert("content-type", HeaderValue::from_static("application/json"));
     Ok(h)
+}
+
+#[derive(Debug)]
+pub struct AuthUser {
+    pub uid: i64,
+    pub name: String,
+}
+
+pub struct LoginSession {
+    client: Client,
+    jar: Arc<Jar>,
+}
+
+impl LoginSession {
+    pub fn new() -> Result<Self> {
+        let (client, jar) = build_login_client()?;
+        Ok(Self { client, jar })
+    }
+
+    pub fn fetch_captcha(&self) -> Result<Vec<u8>> {
+        let response = self
+            .client
+            .get(format!("{BASE_URL}/lg4/captcha"))
+            .header(REFERER, "https://www.luogu.com.cn/auth/login")
+            .send()
+            .context("fetch login captcha")?
+            .error_for_status()
+            .context("captcha request failed")?;
+        Ok(response.bytes().context("read captcha image")?.to_vec())
+    }
+
+    pub fn password_login(
+        &self,
+        username: &str,
+        password: &str,
+        captcha: &str,
+    ) -> Result<(LoginResponse, String)> {
+        let body = LoginRequest {
+            username: username.to_string(),
+            password: password.to_string(),
+            captcha: captcha.to_string(),
+        };
+        let response = self
+            .client
+            .post(format!("{BASE_URL}/do-auth/password"))
+            .header(REFERER, "https://www.luogu.com.cn/auth/login")
+            .json(&body)
+            .send()
+            .context("send password login request")?;
+        let status = response.status();
+        let text = response.text().context("read password login response")?;
+        if !status.is_success() {
+            let message = serde_json::from_str::<ApiError>(&text)
+                .ok()
+                .and_then(|error| error.error_message)
+                .unwrap_or_else(|| text.trim().to_string());
+            return Err(anyhow!("login failed (HTTP {status}): {message}"));
+        }
+
+        let login: LoginResponse =
+            serde_json::from_str(&text).context("parse password login response")?;
+        let base_url = reqwest::Url::parse(BASE_URL)?;
+        let cookie = self
+            .jar
+            .cookies(&base_url)
+            .ok_or_else(|| anyhow!("login succeeded but no session cookie was returned"))?
+            .to_str()
+            .context("decode session cookie")?
+            .to_string();
+        Ok((login, cookie))
+    }
+}
+
+pub fn validate_session_cookie(cookie: &str) -> Result<AuthUser> {
+    let uid = crate::auth::uid_from_cookie_header(cookie)
+        .ok_or_else(|| anyhow!("cookie does not contain a numeric _uid"))?;
+    let client = build_client_with_cookie_and_policy(Some(cookie), Policy::none())?;
+
+    let response = client
+        .get(format!("{BASE_URL}/api/user/createdProblems"))
+        .send()
+        .context("validate Luogu session")?;
+    let status = response.status();
+    let text = response
+        .text()
+        .context("read session validation response")?;
+    if !status.is_success() {
+        let message = serde_json::from_str::<ApiError>(&text)
+            .ok()
+            .and_then(|error| error.error_message)
+            .unwrap_or_else(|| "stored cookie is invalid or expired".to_string());
+        return Err(anyhow!(
+            "session validation failed (HTTP {status}): {message}"
+        ));
+    }
+
+    let response = client
+        .get(format!("{BASE_URL}/api/user/info/{uid}"))
+        .send()
+        .context("fetch logged-in user")?
+        .error_for_status()
+        .context("logged-in user request failed")?;
+    let value: serde_json::Value = response.json().context("parse logged-in user")?;
+    let name = value
+        .get("user")
+        .and_then(|user| user.get("name"))
+        .and_then(|name| name.as_str())
+        .map(str::to_string)
+        .unwrap_or_else(|| uid.to_string());
+    Ok(AuthUser { uid, name })
 }
 
 fn get_json<T: DeserializeOwned>(client: &Client, url: &str, headers: &HeaderMap) -> Result<T> {

@@ -18,6 +18,10 @@ pub enum Commands {
     Catalog(CatalogArgs),
     /// Start local web server for problem catalog/history.
     Serve(ServeArgs),
+    /// Log in to Luogu and persist the session.
+    Login(LoginArgs),
+    /// Remove the locally stored Luogu session.
+    Logout,
 
     // ── New commands ──
     /// Search problems by keyword, difficulty, tag, etc.
@@ -228,6 +232,25 @@ pub struct SubmitArgs {
     /// CSRF token (if not provided, will be fetched automatically).
     #[arg(long)]
     pub csrf: Option<String>,
+}
+
+#[derive(Args, Debug)]
+pub struct LoginArgs {
+    /// Luogu username or email.
+    #[arg(long)]
+    pub username: Option<String>,
+    /// Luogu password. Prefer the hidden interactive prompt.
+    #[arg(long)]
+    pub password: Option<String>,
+    /// Captcha text. If omitted, a captcha image is downloaded and prompted.
+    #[arg(long)]
+    pub captcha: Option<String>,
+    /// Browser Cookie header containing _uid and __client_id.
+    #[arg(long)]
+    pub cookie: Option<String>,
+    /// File containing a browser Cookie header.
+    #[arg(long, value_name = "FILE")]
+    pub cookie_file: Option<PathBuf>,
 }
 
 #[derive(Args, Debug)]

@@ -1,3 +1,4 @@
+mod auth;
 mod cli;
 mod commands;
 mod config;
@@ -23,6 +24,8 @@ fn run() -> Result<()> {
         cli::Commands::Catalog(args) => commands::catalog::run(args),
         cli::Commands::Serve(args) => commands::serve::run(args),
 
+        cli::Commands::Login(args) => commands::login::run(args),
+        cli::Commands::Logout => commands::login::logout(),
         cli::Commands::Search(args) => commands::search::run(args),
         cli::Commands::Training(args) => commands::training::run(args),
         cli::Commands::Contest(args) => commands::contest::run(args),

@@ -2,6 +2,7 @@ pub mod catalog;
 pub mod contest;
 pub mod fetch;
 pub mod judge;
+pub mod login;
 pub mod rank;
 pub mod record;
 pub mod search;

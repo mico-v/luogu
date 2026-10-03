@@ -166,7 +166,11 @@ fn load_cpp_compile_config() -> Result<CompileConfig> {
     })
 }
 
-fn detect_cpp_source(problem_dir: &Path, source_override: Option<&str>) -> Result<String> {
+fn detect_cpp_source(
+    problem_dir: &Path,
+    source_override: Option<&str>,
+    default_source: &str,
+) -> Result<String> {
     if let Some(src) = source_override {
         let source_path = problem_dir.join(src);
         if !source_path.exists() {
@@ -178,13 +182,22 @@ fn detect_cpp_source(problem_dir: &Path, source_override: Option<&str>) -> Resul
         return Ok(src.to_string());
     }
 
+    // Prefer the configured source filename, then the conventional names.
+    let mut candidates: Vec<&str> = vec![default_source];
     for candidate in ["main.cpp", "main.cc", "main.cxx"] {
+        if candidate != default_source {
+            candidates.push(candidate);
+        }
+    }
+    for candidate in candidates {
         if problem_dir.join(candidate).exists() {
             return Ok(candidate.to_string());
         }
     }
 
-    Err(anyhow!("no C++ source file found (main.cpp/main.cc/main.cxx)"))
+    Err(anyhow!(
+        "no C++ source file found (configured: {default_source}, or main.cpp/main.cc/main.cxx)"
+    ))
 }
 
 fn compile_cpp(
@@ -228,18 +241,46 @@ fn compile_cpp(
     })
 }
 
-fn collect_samples(problem_dir: &std::path::Path) -> Vec<(std::path::PathBuf, std::path::PathBuf)> {
-    let mut v = Vec::new();
-    if let Ok(entries) = fs::read_dir(problem_dir) {
+fn collect_samples(
+    problem_dir: &std::path::Path,
+    testcases: &crate::config::TestcasesConfig,
+    source_stem: &str,
+) -> Vec<(std::path::PathBuf, std::path::PathBuf)> {
+    let dir = problem_dir.join(testcases.directory());
+    let re = match testcases.input_regex() {
+        Ok(re) => re,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut found: Vec<(usize, std::path::PathBuf, std::path::PathBuf)> = Vec::new();
+    if let Ok(entries) = fs::read_dir(&dir) {
         for entry in entries.flatten() {
-            let p = entry.path();
-            if p.extension().and_then(|e| e.to_str()) == Some("in") {
-                v.push((p.clone(), p.with_extension("out")));
-            }
+            let path = entry.path();
+            let name = match path.file_name().and_then(|s| s.to_str()) {
+                Some(name) => name,
+                None => continue,
+            };
+            let caps = match re.captures(name) {
+                Some(caps) => caps,
+                None => continue,
+            };
+            let fnoext = caps
+                .name("fnoext")
+                .map(|m| m.as_str())
+                .unwrap_or(source_stem);
+            let tcnum: usize = match caps.name("tcnum").and_then(|m| m.as_str().parse().ok()) {
+                Some(n) => n,
+                None => continue,
+            };
+            let output = testcases.output_path(&dir, fnoext, tcnum);
+            found.push((tcnum, path, output));
         }
     }
-    v.sort();
-    v
+    found.sort_by_key(|(n, _, _)| *n);
+    found
+        .into_iter()
+        .map(|(_, input, output)| (input, output))
+        .collect()
 }
 
 pub fn run(args: JudgeArgs) -> Result<()> {
@@ -249,8 +290,18 @@ pub fn run(args: JudgeArgs) -> Result<()> {
         return Err(anyhow!("problem dir not found: {}", problem_dir.display()));
     }
 
+    let project_cfg = crate::config::load()?;
     let mut config = load_cpp_compile_config()?;
-    config.source = detect_cpp_source(&problem_dir, args.source.as_deref())?;
+    config.source = detect_cpp_source(
+        &problem_dir,
+        args.source.as_deref(),
+        project_cfg.source(),
+    )?;
+    let source_stem = Path::new(&config.source)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| anyhow!("invalid source filename: {}", config.source))?
+        .to_string();
 
     eprintln!(
         "{} Compiling C++ with {} -{} ({}) ...",
@@ -281,9 +332,14 @@ pub fn run(args: JudgeArgs) -> Result<()> {
     }
     eprintln!("{} Compiled in {:.2}s", "✓".green(), compile_info.elapsed_seconds);
 
-    let samples = collect_samples(&problem_dir);
+    let testcases = project_cfg.testcases();
+    let samples = collect_samples(&problem_dir, testcases, &source_stem);
     if samples.is_empty() {
-        return Err(anyhow!("no sample *.in files in {}", problem_dir.display()));
+        return Err(anyhow!(
+            "no testcases matching {:?} in {}",
+            testcases.input_format,
+            problem_dir.join(testcases.directory()).display()
+        ));
     }
 
     eprintln!("{} Running {} samples ...", "▶".cyan(), samples.len());

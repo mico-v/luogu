@@ -1,4 +1,5 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
+use regex::Regex;
 use serde::Deserialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -6,10 +7,33 @@ use std::path::{Path, PathBuf};
 /// Project-level config file (created on first use if missing).
 const CONFIG_FILE: &str = "luogu_config.json";
 
+// Defaults follow the competitest.nvim convention:
+//   <problem>/testcases/<source-stem>.<n>.in / .ans   (n starts at 0)
+fn default_testcases_dir() -> String {
+    "testcases".to_string()
+}
+
+fn default_input_format() -> String {
+    "$(FNOEXT).$(TCNUM).in".to_string()
+}
+
+fn default_output_format() -> String {
+    "$(FNOEXT).$(TCNUM).ans".to_string()
+}
+
+fn default_source_file() -> String {
+    "main.cpp".to_string()
+}
+
 #[derive(Debug, Deserialize, Default)]
 struct ConfigFile {
     #[serde(default)]
     template: TemplateConfig,
+    #[serde(default)]
+    testcases: TestcasesConfig,
+    /// Source filename scaffolded for new problems (its stem seeds `$(FNOEXT)`).
+    #[serde(default = "default_source_file")]
+    source: String,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -22,16 +46,91 @@ struct TemplateConfig {
     path: Option<String>,
 }
 
+/// Testcase storage settings, aligned with competitest.nvim conventions.
+#[derive(Debug, Clone, Deserialize)]
+pub struct TestcasesConfig {
+    /// Subdirectory (relative to the problem dir) holding testcases.
+    #[serde(default = "default_testcases_dir")]
+    pub directory: String,
+    /// Input filename template. Supports `$(FNOEXT)` and `$(TCNUM)`.
+    #[serde(default = "default_input_format")]
+    pub input_format: String,
+    /// Expected-output filename template. Supports `$(FNOEXT)` and `$(TCNUM)`.
+    #[serde(default = "default_output_format")]
+    pub output_format: String,
+}
+
+impl Default for TestcasesConfig {
+    fn default() -> Self {
+        Self {
+            directory: default_testcases_dir(),
+            input_format: default_input_format(),
+            output_format: default_output_format(),
+        }
+    }
+}
+
+impl TestcasesConfig {
+    pub fn directory(&self) -> &str {
+        &self.directory
+    }
+
+    pub fn input_name(&self, fnoext: &str, tcnum: usize) -> String {
+        expand_format(&self.input_format, fnoext, tcnum)
+    }
+
+    pub fn output_name(&self, fnoext: &str, tcnum: usize) -> String {
+        expand_format(&self.output_format, fnoext, tcnum)
+    }
+
+    pub fn input_path(&self, dir: &Path, fnoext: &str, tcnum: usize) -> PathBuf {
+        dir.join(self.input_name(fnoext, tcnum))
+    }
+
+    pub fn output_path(&self, dir: &Path, fnoext: &str, tcnum: usize) -> PathBuf {
+        dir.join(self.output_name(fnoext, tcnum))
+    }
+
+    /// Regex matching input filenames, capturing `fnoext` and `tcnum`.
+    pub fn input_regex(&self) -> Result<Regex> {
+        let pattern = format_to_regex(&self.input_format);
+        Regex::new(&pattern)
+            .map_err(|e| anyhow!("invalid testcases input_format {:?}: {e}", self.input_format))
+    }
+}
+
 /// Resolved project configuration.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Config {
     template: Option<String>,
+    testcases: TestcasesConfig,
+    source: String,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            template: None,
+            testcases: TestcasesConfig::default(),
+            source: default_source_file(),
+        }
+    }
 }
 
 impl Config {
     /// Initial source code to scaffold for new problems, if configured.
     pub fn template(&self) -> Option<&str> {
         self.template.as_deref()
+    }
+
+    /// Testcase storage settings.
+    pub fn testcases(&self) -> &TestcasesConfig {
+        &self.testcases
+    }
+
+    /// Source filename used for new problems (default `main.cpp`).
+    pub fn source(&self) -> &str {
+        &self.source
     }
 }
 
@@ -41,9 +140,15 @@ fn config_path() -> PathBuf {
 
 fn default_config_text() -> Result<String> {
     let default = serde_json::json!({
+        "source": default_source_file(),
         "template": {
             "code": "",
             "path": ""
+        },
+        "testcases": {
+            "directory": default_testcases_dir(),
+            "input_format": default_input_format(),
+            "output_format": default_output_format()
         }
     });
     Ok(format!("{}\n", serde_json::to_string_pretty(&default)?))
@@ -62,7 +167,11 @@ pub fn load() -> Result<Config> {
         serde_json::from_str(&text).with_context(|| format!("parse {}", path.display()))?;
 
     let template = resolve_template(&file_cfg.template, &path)?;
-    Ok(Config { template })
+    Ok(Config {
+        template,
+        testcases: file_cfg.testcases,
+        source: file_cfg.source,
+    })
 }
 
 fn resolve_template(template: &TemplateConfig, config_path: &Path) -> Result<Option<String>> {
@@ -93,6 +202,59 @@ fn resolve_template(template: &TemplateConfig, config_path: &Path) -> Result<Opt
     }
 
     Ok(None)
+}
+
+/// Expand `$(FNOEXT)` / `$(TCNUM)` placeholders in a filename template.
+fn expand_format(fmt: &str, fnoext: &str, tcnum: usize) -> String {
+    let mut out = String::with_capacity(fmt.len() + fnoext.len());
+    let mut rest = fmt;
+    while let Some(pos) = rest.find("$(") {
+        out.push_str(&rest[..pos]);
+        let after = &rest[pos..];
+        match after.find(')') {
+            Some(end) => {
+                match &after[2..end] {
+                    "FNOEXT" => out.push_str(fnoext),
+                    "TCNUM" => out.push_str(&tcnum.to_string()),
+                    _ => out.push_str(&after[..=end]),
+                }
+                rest = &after[end + 1..];
+            }
+            None => {
+                out.push_str(after);
+                rest = "";
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Turn a filename template into an anchored regex with `fnoext` / `tcnum` groups.
+fn format_to_regex(fmt: &str) -> String {
+    let mut pat = String::from("^");
+    let mut rest = fmt;
+    while let Some(pos) = rest.find("$(") {
+        pat.push_str(&regex::escape(&rest[..pos]));
+        let after = &rest[pos..];
+        match after.find(')') {
+            Some(end) => {
+                match &after[2..end] {
+                    "FNOEXT" => pat.push_str("(?P<fnoext>.+?)"),
+                    "TCNUM" => pat.push_str("(?P<tcnum>[0-9]+)"),
+                    _ => pat.push_str(&regex::escape(&after[..=end])),
+                }
+                rest = &after[end + 1..];
+            }
+            None => {
+                pat.push_str(&regex::escape(after));
+                rest = "";
+            }
+        }
+    }
+    pat.push_str(&regex::escape(rest));
+    pat.push('$');
+    pat
 }
 
 #[cfg(test)]
@@ -134,5 +296,54 @@ mod tests {
         let cfg = resolve_template(&tpl(None, Some("main.cpp")), &config_path).unwrap();
         assert_eq!(cfg.as_deref(), Some("// template\n"));
         fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn default_testcase_names() {
+        let tc = TestcasesConfig::default();
+        assert_eq!(tc.directory(), "testcases");
+        assert_eq!(tc.input_name("main", 0), "main.0.in");
+        assert_eq!(tc.output_name("main", 0), "main.0.ans");
+        assert_eq!(tc.input_name("main", 12), "main.12.in");
+    }
+
+    #[test]
+    fn parses_input_names() {
+        let tc = TestcasesConfig::default();
+        let re = tc.input_regex().unwrap();
+
+        let caps = re.captures("main.7.in").unwrap();
+        assert_eq!(caps.name("fnoext").unwrap().as_str(), "main");
+        assert_eq!(caps.name("tcnum").unwrap().as_str(), "7");
+
+        // Output files and the legacy layout must not match.
+        assert!(re.captures("main.7.ans").is_none());
+        assert!(re.captures("sample1.in").is_none());
+    }
+
+    #[test]
+    fn default_config_text_has_testcases() {
+        let text = default_config_text().unwrap();
+        let cfg: ConfigFile = serde_json::from_str(&text).unwrap();
+        assert_eq!(cfg.source, "main.cpp");
+        assert_eq!(cfg.testcases.directory, "testcases");
+        assert_eq!(cfg.testcases.input_format, "$(FNOEXT).$(TCNUM).in");
+        assert_eq!(cfg.testcases.output_format, "$(FNOEXT).$(TCNUM).ans");
+    }
+
+    #[test]
+    fn testcases_section_is_optional() {
+        let cfg: ConfigFile =
+            serde_json::from_str(r#"{"template":{"code":"","path":""}}"#).unwrap();
+        assert_eq!(cfg.source, "main.cpp");
+        assert_eq!(cfg.testcases.directory, "testcases");
+        assert_eq!(cfg.testcases.input_format, "$(FNOEXT).$(TCNUM).in");
+
+        let cfg: ConfigFile =
+            serde_json::from_str(r#"{"testcases":{"directory":"tc"}}"#).unwrap();
+        assert_eq!(cfg.source, "main.cpp");
+        assert_eq!(cfg.testcases.directory, "tc");
+        assert_eq!(cfg.testcases.input_format, "$(FNOEXT).$(TCNUM).in");
+        assert_eq!(cfg.testcases.output_format, "$(FNOEXT).$(TCNUM).ans");
     }
 }
