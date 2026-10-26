@@ -3,14 +3,12 @@
 use crate::models::*;
 use anyhow::{anyhow, Context, Result};
 use regex::Regex;
-use reqwest::blocking::Client;
-use reqwest::cookie::{CookieStore, Jar};
-use reqwest::header::{HeaderMap, HeaderValue, COOKIE, REFERER};
+use reqwest::blocking::{Client, Response};
+use reqwest::header::{HeaderMap, HeaderValue, COOKIE, LOCATION, SET_COOKIE};
 use reqwest::redirect::Policy;
+use reqwest::{StatusCode, Url};
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
-use serde::Serialize;
-use std::sync::Arc;
 use std::time::Duration;
 
 const USER_AGENT: &str =
@@ -19,164 +17,106 @@ const BASE_URL: &str = "https://www.luogu.com.cn";
 
 // ── HTTP client ─────────────────────────────────────────────────
 
-fn build_client_with_cookie(cookie: Option<&str>) -> Result<Client> {
-    build_client_with_cookie_and_policy(cookie, Policy::limited(10))
-}
-
-fn build_client_with_cookie_and_policy(cookie: Option<&str>, redirect: Policy) -> Result<Client> {
-    let mut headers = HeaderMap::new();
-    if let Some(cookie) = cookie {
-        headers.insert(COOKIE, HeaderValue::from_str(cookie)?);
-    }
-
+fn build_client() -> Result<Client> {
     Client::builder()
         .user_agent(USER_AGENT)
         .timeout(Duration::from_secs(30))
-        .cookie_store(true)
-        .default_headers(headers)
-        .redirect(redirect)
         .build()
         .context("build http client")
 }
 
-fn build_client() -> Result<Client> {
-    let cookie = crate::auth::load_session()?.map(|session| session.cookie);
-    build_client_with_cookie(cookie.as_deref())
-}
-
-fn build_login_client() -> Result<(Client, Arc<Jar>)> {
-    let jar = Arc::new(Jar::default());
-    let client = Client::builder()
+fn build_client_without_redirects() -> Result<Client> {
+    Client::builder()
         .user_agent(USER_AGENT)
         .timeout(Duration::from_secs(30))
-        .cookie_provider(jar.clone())
+        .redirect(Policy::none())
         .build()
-        .context("build login client")?;
-    Ok((client, jar))
+        .context("build read-only http client")
+}
+
+fn ensure_public_response(status: StatusCode, resource: &str) -> Result<()> {
+    if status.is_success() {
+        return Ok(());
+    }
+    if status == StatusCode::UNAUTHORIZED
+        || status == StatusCode::FORBIDDEN
+        || status.is_redirection()
+    {
+        return Err(anyhow!(
+            "{resource} is not publicly accessible (HTTP {})",
+            status.as_u16()
+        ));
+    }
+    Err(anyhow!(
+        "{resource} request failed (HTTP {})",
+        status.as_u16()
+    ))
+}
+
+fn challenge_cookie(headers: &HeaderMap, name: &str) -> Option<String> {
+    headers
+        .get_all(SET_COOKIE)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .find_map(|value| {
+            let (cookie_name, cookie_value) = value.split(';').next()?.split_once('=')?;
+            (cookie_name.trim() == name).then(|| cookie_value.trim().to_string())
+        })
+}
+
+fn redirects_to_same_resource(headers: &HeaderMap, requested: &str) -> bool {
+    let location = headers
+        .get(LOCATION)
+        .and_then(|value| value.to_str().ok());
+    let Some(location) = location else {
+        return false;
+    };
+    let Ok(mut requested) = Url::parse(requested) else {
+        return false;
+    };
+    let Ok(mut location) = requested.join(location) else {
+        return false;
+    };
+    requested.set_query(None);
+    location.set_query(None);
+    requested == location
+}
+
+fn get_public_response(
+    url: &str,
+    headers: &HeaderMap,
+    query: &[(&str, &str)],
+) -> Result<Response> {
+    let client = build_client_without_redirects()?;
+    let response = client
+        .get(url)
+        .headers(headers.clone())
+        .query(query)
+        .send()
+        .with_context(|| format!("request {url}"))?;
+
+    // Luogu's anti-bot layer redirects once while setting a short-lived C3VK
+    // cookie. Retry in memory without carrying any login/session cookie.
+    if redirects_to_same_resource(response.headers(), url) {
+        if let Some(value) = challenge_cookie(response.headers(), "C3VK") {
+            let mut retry_headers = headers.clone();
+            retry_headers.insert(COOKIE, HeaderValue::from_str(&format!("C3VK={value}"))?);
+            return client
+                .get(url)
+                .headers(retry_headers)
+                .query(query)
+                .send()
+                .with_context(|| format!("retry public request {url}"));
+        }
+    }
+
+    Ok(response)
 }
 
 fn lentille_headers() -> Result<HeaderMap> {
     let mut h = HeaderMap::new();
     h.insert("x-lentille-request", HeaderValue::from_static("content-only"));
     Ok(h)
-}
-
-fn post_headers(csrf: &str) -> Result<HeaderMap> {
-    let mut h = HeaderMap::new();
-    h.insert(REFERER, HeaderValue::from_static("https://www.luogu.com.cn/"));
-    h.insert("x-csrf-token", HeaderValue::from_str(csrf)?);
-    h.insert("content-type", HeaderValue::from_static("application/json"));
-    Ok(h)
-}
-
-#[derive(Debug)]
-pub struct AuthUser {
-    pub uid: i64,
-    pub name: String,
-}
-
-pub struct LoginSession {
-    client: Client,
-    jar: Arc<Jar>,
-}
-
-impl LoginSession {
-    pub fn new() -> Result<Self> {
-        let (client, jar) = build_login_client()?;
-        Ok(Self { client, jar })
-    }
-
-    pub fn fetch_captcha(&self) -> Result<Vec<u8>> {
-        let response = self
-            .client
-            .get(format!("{BASE_URL}/lg4/captcha"))
-            .header(REFERER, "https://www.luogu.com.cn/auth/login")
-            .send()
-            .context("fetch login captcha")?
-            .error_for_status()
-            .context("captcha request failed")?;
-        Ok(response.bytes().context("read captcha image")?.to_vec())
-    }
-
-    pub fn password_login(
-        &self,
-        username: &str,
-        password: &str,
-        captcha: &str,
-    ) -> Result<(LoginResponse, String)> {
-        let body = LoginRequest {
-            username: username.to_string(),
-            password: password.to_string(),
-            captcha: captcha.to_string(),
-        };
-        let response = self
-            .client
-            .post(format!("{BASE_URL}/do-auth/password"))
-            .header(REFERER, "https://www.luogu.com.cn/auth/login")
-            .json(&body)
-            .send()
-            .context("send password login request")?;
-        let status = response.status();
-        let text = response.text().context("read password login response")?;
-        if !status.is_success() {
-            let message = serde_json::from_str::<ApiError>(&text)
-                .ok()
-                .and_then(|error| error.error_message)
-                .unwrap_or_else(|| text.trim().to_string());
-            return Err(anyhow!("login failed (HTTP {status}): {message}"));
-        }
-
-        let login: LoginResponse =
-            serde_json::from_str(&text).context("parse password login response")?;
-        let base_url = reqwest::Url::parse(BASE_URL)?;
-        let cookie = self
-            .jar
-            .cookies(&base_url)
-            .ok_or_else(|| anyhow!("login succeeded but no session cookie was returned"))?
-            .to_str()
-            .context("decode session cookie")?
-            .to_string();
-        Ok((login, cookie))
-    }
-}
-
-pub fn validate_session_cookie(cookie: &str) -> Result<AuthUser> {
-    let uid = crate::auth::uid_from_cookie_header(cookie)
-        .ok_or_else(|| anyhow!("cookie does not contain a numeric _uid"))?;
-    let client = build_client_with_cookie_and_policy(Some(cookie), Policy::none())?;
-
-    let response = client
-        .get(format!("{BASE_URL}/api/user/createdProblems"))
-        .send()
-        .context("validate Luogu session")?;
-    let status = response.status();
-    let text = response
-        .text()
-        .context("read session validation response")?;
-    if !status.is_success() {
-        let message = serde_json::from_str::<ApiError>(&text)
-            .ok()
-            .and_then(|error| error.error_message)
-            .unwrap_or_else(|| "stored cookie is invalid or expired".to_string());
-        return Err(anyhow!(
-            "session validation failed (HTTP {status}): {message}"
-        ));
-    }
-
-    let response = client
-        .get(format!("{BASE_URL}/api/user/info/{uid}"))
-        .send()
-        .context("fetch logged-in user")?
-        .error_for_status()
-        .context("logged-in user request failed")?;
-    let value: serde_json::Value = response.json().context("parse logged-in user")?;
-    let name = value
-        .get("user")
-        .and_then(|user| user.get("name"))
-        .and_then(|name| name.as_str())
-        .map(str::to_string)
-        .unwrap_or_else(|| uid.to_string());
-    Ok(AuthUser { uid, name })
 }
 
 fn get_json<T: DeserializeOwned>(client: &Client, url: &str, headers: &HeaderMap) -> Result<T> {
@@ -214,24 +154,6 @@ fn get_json_lentille<T: DeserializeOwned>(
             .and_then(|v| serde_json::from_value(v).map_err(|e| anyhow::anyhow!("{}", e)))
     })
     .with_context(|| format!("parse JSON from {url}"))
-}
-
-fn post_json<T: DeserializeOwned, B: Serialize>(
-    client: &Client,
-    url: &str,
-    headers: &HeaderMap,
-    body: &B,
-) -> Result<T> {
-    let resp = client
-        .post(url)
-        .headers(headers.clone())
-        .json(body)
-        .send()
-        .with_context(|| format!("POST {url}"))?
-        .error_for_status()
-        .with_context(|| format!("POST {url} status error"))?;
-    let text = resp.text().context("read response body")?;
-    serde_json::from_str(&text).with_context(|| format!("parse JSON from {url}"))
 }
 
 /// Extract JSON data from HTML's lentille-context script tag
@@ -298,13 +220,13 @@ fn get_lentille_data<T: DeserializeOwned>(url: &str, query: &[(&str, String)]) -
     extract_data::<T>(value)
 }
 
-// ── Warm up session ─────────────────────────────────────────────
+// ── Warm up anonymous client ────────────────────────────────────
 
 pub fn warm_up(client: &Client) -> Result<()> {
     client
         .get(format!("{BASE_URL}/"))
         .send()
-        .context("warm up session")?
+        .context("warm up request")?
         .error_for_status()
         .context("warm up failed")?;
     Ok(())
@@ -313,19 +235,21 @@ pub fn warm_up(client: &Client) -> Result<()> {
 // ── Fetch problem ───────────────────────────────────────────────
 
 pub fn fetch_problem(pid: &str) -> Result<ParsedProblem> {
-    let client = build_client()?;
     let headers = lentille_headers()?;
     let url = format!("{BASE_URL}/problem/{pid}");
+    let response = get_public_response(&url, &headers, &[])?;
+    ensure_public_response(response.status(), &format!("problem {pid}"))?;
+    let text = response
+        .text()
+        .with_context(|| format!("read problem response for {pid}"))?;
 
-    let result: Result<LentilleResponse<ProblemData>> = get_json(&client, &url, &headers);
-
-    match result {
-        Ok(api_resp) => Ok(convert_problem_data(api_resp.data)),
-        Err(_) => {
-            // Fallback to HTML parsing
-            fetch_problem_html(pid)
-        }
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) {
+        let data = extract_data::<ProblemData>(value)
+            .with_context(|| format!("parse problem data for {pid}"))?;
+        return Ok(convert_problem_data(data));
     }
+
+    fetch_problem_html(pid, &text)
 }
 
 fn convert_problem_data(data: ProblemData) -> ParsedProblem {
@@ -391,23 +315,10 @@ fn convert_problem_data(data: ProblemData) -> ParsedProblem {
 
 // ── HTML fallback (original scraping logic) ─────────────────────
 
-fn fetch_problem_html(pid: &str) -> Result<ParsedProblem> {
-    let client = build_client()?;
-    warm_up(&client)?;
-
-    let url = format!("{BASE_URL}/problem/{pid}");
-    let html = client
-        .get(&url)
-        .send()
-        .with_context(|| format!("request problem page {url}"))?
-        .error_for_status()
-        .with_context(|| format!("problem page status not success: {url}"))?
-        .text()
-        .context("read page text")?;
-
+fn fetch_problem_html(pid: &str, html: &str) -> Result<ParsedProblem> {
     let re = Regex::new(r#"<script[^>]*id="lentille-context"[^>]*>(?s)(.*?)</script>"#)?;
     let caps = re
-        .captures(&html)
+        .captures(html)
         .ok_or_else(|| anyhow!("cannot find lentille-context payload"))?;
     let payload = caps
         .get(1)
@@ -626,16 +537,10 @@ struct ProblemListWrapper {
 // ── Training API ────────────────────────────────────────────────
 
 pub fn fetch_training(id: i64) -> Result<ProblemSetData> {
-    let client = build_client()?;
     let headers = lentille_headers()?;
     let url = format!("{BASE_URL}/training/{id}");
-    let resp = client
-        .get(&url)
-        .headers(headers)
-        .send()
-        .with_context(|| format!("request training {id}"))?
-        .error_for_status()
-        .with_context(|| format!("training {id} status error"))?;
+    let resp = get_public_response(&url, &headers, &[])?;
+    ensure_public_response(resp.status(), &format!("training {id}"))?;
     let text = resp.text().context("read training response")?;
 
     // Try direct JSON parse
@@ -667,16 +572,9 @@ pub fn fetch_training_list(
 
     let url = format!("{BASE_URL}/training/list");
     let query_refs: Vec<(&str, &str)> = params.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-    let client = build_client()?;
     let headers = lentille_headers()?;
-    let resp = client
-        .get(&url)
-        .headers(headers)
-        .query(&query_refs)
-        .send()
-        .context("request training list")?
-        .error_for_status()
-        .context("training list status error")?;
+    let resp = get_public_response(&url, &headers, &query_refs)?;
+    ensure_public_response(resp.status(), "training list")?;
     let text = resp.text().context("read training list response")?;
 
     // Try direct JSON parse
@@ -769,7 +667,7 @@ pub fn search_user(keyword: &str) -> Result<UserSearchResult> {
 // ── Solution API ────────────────────────────────────────────────
 
 pub fn fetch_solutions(pid: &str, page: i64) -> Result<SolutionsData> {
-    let client = build_client()?;
+    let client = build_client_without_redirects()?;
     let headers = lentille_headers()?;
     let url = format!("{BASE_URL}/problem/solution/{pid}");
     let resp = client
@@ -779,11 +677,8 @@ pub fn fetch_solutions(pid: &str, page: i64) -> Result<SolutionsData> {
         .send()
         .with_context(|| format!("request solutions for {pid}"))?;
     let status = resp.status();
+    ensure_public_response(status, &format!("solutions for {pid}"))?;
     let text = resp.text().with_context(|| format!("read solutions response for {pid}"))?;
-
-    if !status.is_success() {
-        return Err(anyhow!("HTTP {}: {}", status.as_u16(), "solutions require login"));
-    }
 
     let v: serde_json::Value = serde_json::from_str(&text)
         .with_context(|| format!("parse solutions JSON for {pid}"))?;
@@ -813,30 +708,25 @@ pub fn fetch_record_list(params: &RecordListParams) -> Result<RecordListData> {
 
     let url = format!("{BASE_URL}/record/list");
     let query_refs: Vec<(&str, &str)> = query_params.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
-    let client = build_client()?;
+    let client = build_client_without_redirects()?;
     let headers = lentille_headers()?;
     let resp = client
         .get(&url)
         .headers(headers)
         .query(&query_refs)
         .send()
-        .context("request record list")?
-        .error_for_status()
-        .context("record list status error")?;
+        .context("request record list")?;
+    ensure_public_response(resp.status(), "record list")?;
     let text = resp.text().context("read record list response")?;
 
     // Try direct JSON parse
     if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
         if let Some(data) = v.get("data") {
-            // Check if we got webauthn (not logged in) - return empty
+            // An authenticated-only response must not be treated as an empty result.
             if data.get("webauthn").is_some() {
-                return Ok(RecordListData {
-                    records: RecordList {
-                        result: Vec::new(),
-                        count: 0,
-                        perPage: None,
-                    },
-                });
+                return Err(anyhow!(
+                    "record list requires authentication; this CLI only fetches public records"
+                ));
             }
             if let Some(records) = data.get("records") {
                 return serde_json::from_value(records.clone())
@@ -854,23 +744,19 @@ pub fn fetch_record_list(params: &RecordListParams) -> Result<RecordListData> {
         return Ok(RecordListData { records });
     }
 
-    // If we got here, no records found (likely not logged in)
-    Ok(RecordListData {
-        records: RecordList {
-            result: Vec::new(),
-            count: 0,
-            perPage: None,
-        },
-    })
+    Err(anyhow!(
+        "record list response did not contain publicly accessible records"
+    ))
 }
 
 pub fn fetch_record_detail(id: i64) -> Result<RecordData> {
     let url = format!("{BASE_URL}/record/{id}");
     // Try direct JSON with lentille header
-    let client = build_client()?;
+    let client = build_client_without_redirects()?;
     let headers = lentille_headers()?;
     let resp = client.get(&url).headers(headers).send()
         .context("request record detail")?;
+    ensure_public_response(resp.status(), &format!("record {id}"))?;
     let text = resp.text().context("read record detail response")?;
 
     if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
@@ -940,58 +826,6 @@ pub fn fetch_elo_ranking(page: i64) -> Result<EloRankingData> {
     let data = v.get("data")
         .ok_or_else(|| anyhow!("missing data in elo ranking"))?;
     serde_json::from_value(data.clone()).context("parse elo ranking data")
-}
-
-// ── Submit API ──────────────────────────────────────────────────
-
-pub fn fetch_csrf_token() -> Result<String> {
-    let client = build_client()?;
-    let html = client
-        .get(format!("{BASE_URL}/problem/P1000"))
-        .send()
-        .context("fetch page for CSRF token")?
-        .error_for_status()
-        .context("CSRF page status error")?
-        .text()
-        .context("read CSRF page")?;
-
-    let re = Regex::new(r#"<meta\s+name="csrf-token"\s+content="([^"]+)"\s*/>"#)?;
-    if let Some(caps) = re.captures(&html) {
-        return Ok(caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string());
-    }
-
-    // Fallback: try to find it in lentille-context
-    let re2 =
-        Regex::new(r#"<script[^>]*id="lentille-context"[^>]*>(?s)(.*?)</script>"#)?;
-    if let Some(caps) = re2.captures(&html) {
-        let payload = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-        let root: serde_json::Value =
-            serde_json::from_str(payload).unwrap_or(serde_json::Value::Null);
-        if let Some(csrf) = root
-            .get("config")
-            .and_then(|c| c.get("csrfToken"))
-            .and_then(|c| c.as_str())
-        {
-            return Ok(csrf.to_string());
-        }
-    }
-
-    Err(anyhow!("cannot find CSRF token"))
-}
-
-pub fn submit_code(pid: &str, code: &str, lang: i64, enable_o2: bool, csrf: &str) -> Result<SubmitResponse> {
-    let client = build_client()?;
-    let headers = post_headers(csrf)?;
-    let url = format!("{BASE_URL}/fe/api/problem/submit/{pid}");
-
-    let body = SubmitCodeRequest {
-        code: code.to_string(),
-        lang: Some(lang),
-        enableO2: Some(if enable_o2 { 1 } else { 0 }),
-        captcha: None,
-    };
-
-    post_json(&client, &url, &headers, &body)
 }
 
 // ── Config API ──────────────────────────────────────────────────

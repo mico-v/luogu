@@ -11,8 +11,12 @@ pub fn run(args: SolutionArgs) -> Result<()> {
         Ok(d) => d,
         Err(e) => {
             let msg = format!("{:#}", e);
-            if msg.contains("401") || msg.contains("login") || msg.contains("Unauthorized") {
-                println!("{} Solutions for {} require login. Try using a browser to view solutions.", "🔒".normal(), args.pid.cyan());
+            if msg.contains("401") || msg.contains("not publicly accessible") {
+                println!(
+                    "{} Solutions for {} are not publicly accessible.",
+                    "🔒".normal(),
+                    args.pid.cyan()
+                );
             } else {
                 println!("{} Failed to fetch solutions: {}", "✗".red(), e);
             }
@@ -82,7 +86,7 @@ pub fn run(args: SolutionArgs) -> Result<()> {
     }
 
     println!();
-    if total > (args.page * 20) as i64 {
+    if total > args.page * 20 {
         println!("{} Use --page {} to see more", "💡".cyan(), args.page + 1);
     }
     println!("{} Use --index <n> to view full solution content", "💡".cyan());

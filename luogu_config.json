@@ -1,0 +1,12 @@
+{
+  "source": "main.cpp",
+  "template": {
+    "code": "",
+    "path": ""
+  },
+  "testcases": {
+    "directory": "testcases",
+    "input_format": "$(FNOEXT).$(TCNUM).in",
+    "output_format": "$(FNOEXT).$(TCNUM).ans"
+  }
+}

@@ -18,10 +18,6 @@ pub enum Commands {
     Catalog(CatalogArgs),
     /// Start local web server for problem catalog/history.
     Serve(ServeArgs),
-    /// Log in to Luogu and persist the session.
-    Login(LoginArgs),
-    /// Remove the locally stored Luogu session.
-    Logout,
 
     // ── New commands ──
     /// Search problems by keyword, difficulty, tag, etc.
@@ -34,8 +30,6 @@ pub enum Commands {
     User(UserArgs),
     /// Fetch solutions for a problem.
     Solution(SolutionArgs),
-    /// Submit code to Luogu (requires login cookies).
-    Submit(SubmitArgs),
     /// View submission records.
     Record(RecordArgs),
     /// List problem tags.
@@ -48,7 +42,8 @@ pub enum Commands {
 
 #[derive(Args, Debug)]
 pub struct FetchArgs {
-    /// Problem ID, such as P1000.
+    /// Problem or training ID/URL, such as P1000 or /training/100.
+    #[arg(value_name = "TARGET")]
     pub pid: String,
     /// Root folder to store problems.
     #[arg(long, default_value = "problem")]
@@ -113,7 +108,7 @@ pub struct SearchArgs {
     #[arg(short, long)]
     pub difficulty: Option<i64>,
     /// Problem type: P (main), B (beginner), T (team), etc.
-    #[arg(short, long, default_value = "P")]
+    #[arg(long, default_value = "P")]
     pub ptype: Option<String>,
     /// Tag ID filter (use 'luogu tags' to list).
     #[arg(short, long)]
@@ -214,51 +209,11 @@ pub struct SolutionArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct SubmitArgs {
-    /// Problem ID to submit to.
-    pub pid: String,
-    /// Source file path (default: problem/PID/main.cpp).
-    #[arg(short, long)]
-    pub source: Option<String>,
-    /// Root folder containing problem directories.
-    #[arg(long, default_value = "problem")]
-    pub base_dir: PathBuf,
-    /// Language ID (default: 12 for C++17 with O2).
-    #[arg(short, long, default_value_t = 12)]
-    pub lang: i64,
-    /// Disable O2 optimization.
-    #[arg(long)]
-    pub no_o2: bool,
-    /// CSRF token (if not provided, will be fetched automatically).
-    #[arg(long)]
-    pub csrf: Option<String>,
-}
-
-#[derive(Args, Debug)]
-pub struct LoginArgs {
-    /// Luogu username or email.
-    #[arg(long)]
-    pub username: Option<String>,
-    /// Luogu password. Prefer the hidden interactive prompt.
-    #[arg(long)]
-    pub password: Option<String>,
-    /// Captcha text. If omitted, a captcha image is downloaded and prompted.
-    #[arg(long)]
-    pub captcha: Option<String>,
-    /// Browser Cookie header containing _uid and __client_id.
-    #[arg(long)]
-    pub cookie: Option<String>,
-    /// File containing a browser Cookie header.
-    #[arg(long, value_name = "FILE")]
-    pub cookie_file: Option<PathBuf>,
-}
-
-#[derive(Args, Debug)]
 pub struct RecordArgs {
     /// Record ID to view details.
     pub id: Option<i64>,
     /// Filter by problem ID.
-    #[arg(short, long)]
+    #[arg(long)]
     pub pid: Option<String>,
     /// Filter by user UID.
     #[arg(short, long)]
@@ -270,7 +225,7 @@ pub struct RecordArgs {
     #[arg(short, long, default_value_t = 1)]
     pub page: i64,
     /// Show source code for a record.
-    #[arg(short, long)]
+    #[arg(long)]
     pub source: bool,
 }
 
@@ -285,4 +240,28 @@ pub struct RankArgs {
     /// Limit results shown.
     #[arg(long, default_value_t = 30)]
     pub limit: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::error::ErrorKind;
+
+    #[test]
+    fn authentication_commands_are_not_exposed() {
+        for command in ["login", "logout", "submit"] {
+            assert!(Cli::try_parse_from(["luogu", command]).is_err());
+        }
+    }
+
+    #[test]
+    fn every_subcommand_has_valid_clap_arguments() {
+        for command in [
+            "fetch", "judge", "catalog", "serve", "search", "training", "contest", "user",
+            "solution", "record", "tags", "rank",
+        ] {
+            let error = Cli::try_parse_from(["luogu", command, "--help"]).unwrap_err();
+            assert_eq!(error.kind(), ErrorKind::DisplayHelp, "command: {command}");
+        }
+    }
 }

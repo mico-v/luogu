@@ -1,6 +1,7 @@
 # Luogu 本地练习 CLI
 
-基于洛谷 API 的命令行工具，支持题目管理、C++ 本地评测、题单/比赛批量导入、用户查询等。
+基于洛谷公开 API 的只读命令行工具，支持题目管理、C++ 本地评测、题单/比赛批量导入、
+用户查询等。工具不提供登录功能，也不会读取、保存或发送登录 Cookie/会话。
 
 ## 快速开始
 
@@ -16,11 +17,19 @@ cargo build --release
 
 ```bash
 luogu fetch P1000
+luogu fetch https://www.luogu.com.cn/problem/P1000
 ```
 
 常用参数：
 - `--base-dir problem`：题目根目录
 - `--force`：覆盖已有目录中的生成文件
+
+题单也可以直接交给 `fetch` 批量导入：
+
+```bash
+luogu fetch 100
+luogu fetch https://www.luogu.com.cn/training/100
+```
 
 ### C++ 样例评测
 
@@ -81,10 +90,14 @@ luogu training --list
 luogu training --list --keyword "动态规划"
 
 # 导入整个题单的题目
-luogu training 12345
+luogu fetch 100
+luogu fetch https://www.luogu.com.cn/training/100
 
 # 强制覆盖已有文件
-luogu training 12345 --force
+luogu fetch 100 --force
+
+# 保留原 training 命令用法
+luogu training 100
 ```
 
 ### 比赛导入
@@ -126,49 +139,15 @@ luogu solution P1000 --index 1
 luogu solution P1000 --save -i 1
 ```
 
-### 登录洛谷
-
-```bash
-# 交互登录：验证码会直接以彩色字符显示在终端
-luogu login
-
-# 从浏览器复制 Cookie 后导入（也可以使用 --cookie）
-luogu login --cookie-file ~/.cookie
-
-# 清除本地保存的会话
-luogu logout
-```
-
-登录成功后，会话保存在 `.luogu/session.json`，`submit`、`solution`、`record`
-等需要登录的命令会自动使用该会话。Cookie 必须同时包含 `_uid` 和
-`__client_id`；请勿将会话文件提交到版本库。
-
-### 提交代码
-
-```bash
-# 提交当前目录下的 main.cpp
-luogu submit P1000
-
-# 指定源文件
-luogu submit P1000 --source solve.cpp
-
-# 指定语言（默认 12: C++17 O2）
-luogu submit P1000 --lang 12
-
-# 禁用 O2 优化
-luogu submit P1000 --no-o2
-```
-
 ### 查看提交记录
 
-```bash
-# 查看最近的提交记录
-luogu record
+仅查询无需登录即可访问的记录和公开源代码。
 
-# 查看指定题目的提交
+```bash
+# 查看指定题目的公开提交
 luogu record --pid P1000
 
-# 查看指定用户的提交
+# 查看指定用户的公开提交
 luogu record --user 12345
 
 # 查看提交详情
@@ -202,7 +181,6 @@ luogu rank --type elo
 
 - `.luogu/problems.json`：题目元数据
 - `.luogu/judge_log.jsonl`：评测历史
-- `.luogu/session.json`：登录会话（Unix 下权限为 `0600`）
 - `problem/PID/T.md`：题目描述
 - `problem/PID/testcases/main.N.in` / `main.N.ans`：样例数据（`N` 从 0 开始）
 - `problem/PID/main.cpp`：仅在配置了代码模板时生成
@@ -271,6 +249,6 @@ luogu rank --type elo
 
 ## 注意事项
 
-- **提交功能**：先运行 `luogu login`，或通过 `luogu login --cookie-file <文件>` 导入浏览器 Cookie。CSRF 令牌会自动获取，但在某些情况下可能需要手动提供。
+- **只读访问**：不提供登录、提交或会话管理。题解、记录等内容仅在无需登录即可访问时可用。
 - **API 限流**：请合理使用，避免短时间内大量请求。
 - **题单/比赛导入**：会依次 fetch 每道题目，速度取决于网络状况。

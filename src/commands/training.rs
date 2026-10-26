@@ -4,7 +4,7 @@ use crate::{net, storage};
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use colored::Colorize;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 fn difficulty_label(level: Option<i32>) -> String {
     match level.unwrap_or(0) {
@@ -27,6 +27,10 @@ pub fn run(args: TrainingArgs) -> Result<()> {
     }
 
     let tid = args.id.ok_or_else(|| anyhow::anyhow!("training ID required. Use --list to list training sets, or provide an ID."))?;
+    fetch_training_set(tid, &args.base_dir, args.force)
+}
+
+pub fn fetch_training_set(tid: i64, base_dir: &Path, force: bool) -> Result<()> {
     eprintln!("{} Fetching training set {}...", "📚".cyan(), tid.to_string().bold());
 
     let data = net::fetch_training(tid)?;
@@ -51,7 +55,6 @@ pub fn run(args: TrainingArgs) -> Result<()> {
         return Ok(());
     }
 
-    let base_dir = args.base_dir;
     let mut map = storage::load_problem_map()?;
     let mut success = 0usize;
     let mut skipped = 0usize;
@@ -59,9 +62,9 @@ pub fn run(args: TrainingArgs) -> Result<()> {
     for entry in problems {
         let pid = &entry.pid;
         let title = &entry.title;
-        let problem_path = storage::problem_dir(&base_dir, pid);
+        let problem_path = storage::problem_dir(base_dir, pid);
 
-        if problem_path.exists() && !args.force {
+        if problem_path.exists() && !force {
             println!("  {} {} {} {}", "⏭".yellow(), pid.cyan(), title, "(skipped, exists)".yellow());
             skipped += 1;
             if !map.contains_key(pid) {
@@ -85,7 +88,7 @@ pub fn run(args: TrainingArgs) -> Result<()> {
         // Fetch and save the problem
         match net::fetch_problem(pid) {
             Ok(problem) => {
-                if let Err(e) = save_problem_files(&problem, &base_dir, args.force) {
+                if let Err(e) = save_problem_files(&problem, base_dir, force) {
                     eprintln!("  {} {} {}: {}", "✗".red(), pid.cyan(), title, e);
                     continue;
                 }
@@ -171,7 +174,7 @@ fn list_trainings(args: &TrainingArgs) -> Result<()> {
 /// Save problem files (called both from fetch::run and training::run)
 pub fn save_problem_files(
     problem: &crate::models::ParsedProblem,
-    base_dir: &PathBuf,
+    base_dir: &Path,
     force: bool,
 ) -> Result<()> {
     let problem_path = storage::problem_dir(base_dir, &problem.pid);

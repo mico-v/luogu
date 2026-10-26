@@ -92,6 +92,7 @@ pub struct ProblemData {
 #[derive(Debug, Deserialize)]
 pub struct ProblemDetails {
     pub pid: String,
+    #[serde(alias = "name")]
     pub title: String,
     pub difficulty: Option<i64>,
     pub tags: Vec<i64>,
@@ -124,6 +125,7 @@ pub struct ProblemLimits {
 #[derive(Debug, Clone, Deserialize)]
 pub struct ProblemSummary {
     pub pid: String,
+    #[serde(alias = "name")]
     pub title: String,
     pub difficulty: Option<i64>,
     #[serde(rename = "type")]
@@ -588,50 +590,6 @@ pub struct EloRatingDetails {
     pub prevDiff: Option<i64>,
 }
 
-// ── Submit API ──────────────────────────────────────────────────
-
-#[derive(Debug, Serialize)]
-pub struct SubmitCodeRequest {
-    pub code: String,
-    pub lang: Option<i64>,
-    pub enableO2: Option<i64>,
-    pub captcha: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SubmitResponse {
-    pub rid: i64,
-}
-
-// ── Authentication API ──────────────────────────────────────────
-
-#[derive(Debug, Serialize)]
-pub struct LoginRequest {
-    pub username: String,
-    pub password: String,
-    pub captcha: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct LoginResponse {
-    pub username: String,
-    #[serde(rename = "syncToken")]
-    pub sync_token: String,
-    pub locked: bool,
-    #[serde(rename = "redirectTo")]
-    pub redirect_to: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ApiError {
-    #[serde(rename = "errorCode")]
-    pub error_code: Option<i64>,
-    #[serde(rename = "errorType")]
-    pub error_type: Option<String>,
-    #[serde(rename = "errorMessage")]
-    pub error_message: Option<String>,
-}
-
 // ── Config API ──────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
@@ -685,5 +643,50 @@ where
             s.parse::<i64>().map_err(|_| Error::custom("expected number string"))
         }
         _ => Err(Error::custom("expected number for time field")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn problem_payload_accepts_name_instead_of_title() {
+        let payload = r#"{
+            "problem": {
+                "pid": "B2002",
+                "name": "Hello,World!",
+                "difficulty": 1,
+                "tags": [353],
+                "content": {
+                    "name": "Hello,World!",
+                    "background": null,
+                    "description": "Output Hello,World!",
+                    "formatI": "",
+                    "formatO": "",
+                    "hint": ""
+                },
+                "samples": [["", "Hello,World!"]],
+                "limits": {"time": [1000], "memory": [131072]},
+                "provider": null,
+                "totalSubmit": 1,
+                "totalAccepted": 1,
+                "flag": 1
+            },
+            "bookmarked": false,
+            "recommendations": [{
+                "pid": "P1001",
+                "name": "A+B Problem",
+                "difficulty": 1
+            }],
+            "translations": {},
+            "lastLanguage": null,
+            "lastCode": "",
+            "canEdit": false
+        }"#;
+
+        let data: ProblemData = serde_json::from_str(payload).unwrap();
+        assert_eq!(data.problem.title, "Hello,World!");
+        assert_eq!(data.recommendations[0].title, "A+B Problem");
     }
 }
