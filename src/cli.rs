@@ -46,7 +46,7 @@ pub struct FetchArgs {
     #[arg(value_name = "TARGET")]
     pub pid: String,
     /// Root folder to store problems.
-    #[arg(long, default_value = "problem")]
+    #[arg(long, default_value = "problems")]
     pub base_dir: PathBuf,
     /// Overwrite existing problem directory files.
     #[arg(long)]
@@ -58,7 +58,7 @@ pub struct JudgeArgs {
     /// Problem ID to judge.
     pub pid: String,
     /// Root folder containing problem directories.
-    #[arg(long, default_value = "problem")]
+    #[arg(long, default_value = "problems")]
     pub base_dir: PathBuf,
     /// C++ source filename in problem directory (default: main.cpp/main.cc/main.cxx).
     #[arg(long)]
@@ -132,7 +132,7 @@ pub struct TrainingArgs {
     /// Training set ID.
     pub id: Option<i64>,
     /// Root folder to store problems.
-    #[arg(long, default_value = "problem")]
+    #[arg(long, default_value = "problems")]
     pub base_dir: PathBuf,
     /// Overwrite existing problem files.
     #[arg(long)]
@@ -153,7 +153,7 @@ pub struct ContestArgs {
     /// Contest ID.
     pub id: Option<i64>,
     /// Root folder to store problems.
-    #[arg(long, default_value = "problem")]
+    #[arg(long, default_value = "problems")]
     pub base_dir: PathBuf,
     /// Overwrite existing problem files.
     #[arg(long)]
@@ -198,7 +198,7 @@ pub struct SolutionArgs {
     #[arg(short, long)]
     pub save: bool,
     /// Root folder containing problem directories.
-    #[arg(long, default_value = "problem")]
+    #[arg(long, default_value = "problems")]
     pub base_dir: PathBuf,
     /// Show full solution content.
     #[arg(short, long)]
@@ -262,6 +262,27 @@ mod tests {
         ] {
             let error = Cli::try_parse_from(["luogu", command, "--help"]).unwrap_err();
             assert_eq!(error.kind(), ErrorKind::DisplayHelp, "command: {command}");
+        }
+    }
+
+    #[test]
+    fn problem_commands_default_to_problems_directory() {
+        let cli = Cli::try_parse_from(["luogu", "fetch", "P1000"]).unwrap();
+        match cli.command {
+            Commands::Fetch(args) => assert_eq!(args.base_dir, PathBuf::from("problems")),
+            _ => panic!("expected fetch command"),
+        }
+
+        let cli = Cli::try_parse_from(["luogu", "training", "100"]).unwrap();
+        match cli.command {
+            Commands::Training(args) => assert_eq!(args.base_dir, PathBuf::from("problems")),
+            _ => panic!("expected training command"),
+        }
+
+        let cli = Cli::try_parse_from(["luogu", "judge", "P1000"]).unwrap();
+        match cli.command {
+            Commands::Judge(args) => assert_eq!(args.base_dir, PathBuf::from("problems")),
+            _ => panic!("expected judge command"),
         }
     }
 }
