@@ -1,7 +1,7 @@
 use crate::cli::FetchArgs;
 use crate::commands::training;
 use crate::models::ProblemRecord;
-use crate::{net, storage};
+use crate::{config, net, storage};
 use anyhow::{bail, Context, Result};
 use chrono::Utc;
 use colored::Colorize;
@@ -32,9 +32,15 @@ fn difficulty_label(level: Option<i32>) -> String {
 }
 
 pub fn run(args: FetchArgs) -> Result<()> {
+    let cfg = config::load()?;
+    let base_dir = args
+        .base_dir
+        .as_deref()
+        .unwrap_or_else(|| cfg.directories().problems());
+    storage::migrate_legacy_problem_root(base_dir)?;
     match parse_fetch_target(&args.pid)? {
-        FetchTarget::Problem(pid) => fetch_problem(&pid, &args.base_dir, args.force),
-        FetchTarget::Training(id) => training::fetch_training_set(id, &args.base_dir, args.force),
+        FetchTarget::Problem(pid) => fetch_problem(&pid, base_dir, args.force),
+        FetchTarget::Training(id) => training::fetch_training_set(id, base_dir, &cfg, args.force),
     }
 }
 
@@ -44,12 +50,17 @@ fn fetch_problem(pid: &str, base_dir: &Path, force: bool) -> Result<()> {
     let problem_path = storage::problem_dir(base_dir, &problem.pid);
 
     if problem_path.exists() && !force {
-        println!("{} Problem directory exists: {}", "⚠".yellow(), problem_path.display());
+        println!(
+            "{} Problem directory exists: {}",
+            "⚠".yellow(),
+            problem_path.display()
+        );
         println!("{} Use --force to overwrite generated files.", "💡".cyan());
         return Ok(());
     }
 
-    fs::create_dir_all(&problem_path).with_context(|| format!("create {}", problem_path.display()))?;
+    fs::create_dir_all(&problem_path)
+        .with_context(|| format!("create {}", problem_path.display()))?;
     training::save_problem_files(&problem, base_dir, force)?;
 
     let mut map: BTreeMap<String, ProblemRecord> = storage::load_problem_map()?;
@@ -68,17 +79,31 @@ fn fetch_problem(pid: &str, base_dir: &Path, force: bool) -> Result<()> {
     storage::save_problem_map(&map)?;
 
     println!();
-    println!("{} {} {} {}", "✓".green(), problem.pid, problem.title, format!("[{}]", difficulty_label(problem.difficulty)).cyan());
+    println!(
+        "{} {} {} {}",
+        "✓".green(),
+        problem.pid,
+        problem.title,
+        format!("[{}]", difficulty_label(problem.difficulty)).cyan()
+    );
     println!("{} {}", "📁".normal(), problem_path.display());
-    print!("{} {} samples | {} time | {} memory", "📊".normal(), problem.samples.len(),
+    print!(
+        "{} {} samples | {} time | {} memory",
+        "📊".normal(),
+        problem.samples.len(),
         format!("{}ms", problem.limits_time_ms.unwrap_or(0)).green(),
-        format!("{}KB", problem.limits_memory_kb.unwrap_or(0)).green());
+        format!("{}KB", problem.limits_memory_kb.unwrap_or(0)).green()
+    );
 
     if let Some(ref provider) = problem.provider {
         print!(" | {}", format!("by {provider}").yellow());
     }
     if let (Some(ac), Some(sub)) = (problem.total_accepted, problem.total_submit) {
-        print!(" | AC {}/{}", ac.to_string().green(), sub.to_string().yellow());
+        print!(
+            " | AC {}/{}",
+            ac.to_string().green(),
+            sub.to_string().yellow()
+        );
     }
     println!();
     Ok(())
@@ -104,7 +129,10 @@ fn parse_luogu_url(raw: &str) -> Result<FetchTarget> {
     .with_context(|| format!("invalid Luogu URL: {raw}"))?;
 
     if !matches!(url.host_str(), Some("www.luogu.com.cn" | "luogu.com.cn")) {
-        bail!("unsupported URL host: {}", url.host_str().unwrap_or("unknown"));
+        bail!(
+            "unsupported URL host: {}",
+            url.host_str().unwrap_or("unknown")
+        );
     }
 
     let segments: Vec<&str> = url
@@ -128,10 +156,7 @@ fn parse_fetch_target(raw: &str) -> Result<FetchTarget> {
     if raw.is_empty() {
         bail!("fetch target cannot be empty");
     }
-    if raw.starts_with("http://")
-        || raw.starts_with("https://")
-        || raw.contains("luogu.com.cn")
-    {
+    if raw.starts_with("http://") || raw.starts_with("https://") || raw.contains("luogu.com.cn") {
         return parse_luogu_url(raw);
     }
 

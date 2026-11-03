@@ -80,7 +80,10 @@ fn parse_opt_level(raw: &str) -> Result<&'static str> {
         "O2" => Ok("O2"),
         "O3" => Ok("O3"),
         "OS" => Ok("Os"),
-        _ => Err(anyhow!("unsupported --opt value: {} (supported: none/O1/O2/O3/Os)", raw)),
+        _ => Err(anyhow!(
+            "unsupported --opt value: {} (supported: none/O1/O2/O3/Os)",
+            raw
+        )),
     }
 }
 
@@ -147,14 +150,10 @@ fn load_cpp_compile_config() -> Result<CompileConfig> {
         return Err(anyhow!("compiler cannot be empty in {}", path.display()));
     }
 
-    let cpp_std_raw = file_cfg
-        .cpp_standard
-        .unwrap_or_else(|| "c++17".to_string());
+    let cpp_std_raw = file_cfg.cpp_standard.unwrap_or_else(|| "c++17".to_string());
     let cpp_std = parse_cpp_standard(&cpp_std_raw)?.to_string();
 
-    let opt_raw = file_cfg
-        .optimization
-        .unwrap_or_else(|| "O2".to_string());
+    let opt_raw = file_cfg.optimization.unwrap_or_else(|| "O2".to_string());
     let optimization = parse_opt_level(&opt_raw)?.to_string();
 
     Ok(CompileConfig {
@@ -284,19 +283,20 @@ fn collect_samples(
 }
 
 pub fn run(args: JudgeArgs) -> Result<()> {
+    let project_cfg = crate::config::load()?;
+    let base_dir = args
+        .base_dir
+        .as_deref()
+        .unwrap_or_else(|| project_cfg.directories().problems());
+    storage::migrate_legacy_problem_root(base_dir)?;
     let pid = args.pid.trim().to_uppercase();
-    let problem_dir = storage::problem_dir(&args.base_dir, &pid);
+    let problem_dir = storage::problem_dir(base_dir, &pid);
     if !problem_dir.exists() {
         return Err(anyhow!("problem dir not found: {}", problem_dir.display()));
     }
 
-    let project_cfg = crate::config::load()?;
     let mut config = load_cpp_compile_config()?;
-    config.source = detect_cpp_source(
-        &problem_dir,
-        args.source.as_deref(),
-        project_cfg.source(),
-    )?;
+    config.source = detect_cpp_source(&problem_dir, args.source.as_deref(), project_cfg.source())?;
     let source_stem = Path::new(&config.source)
         .file_stem()
         .and_then(|s| s.to_str())
@@ -313,7 +313,12 @@ pub fn run(args: JudgeArgs) -> Result<()> {
     let compile_info = compile_cpp(&problem_dir, &config, &args.cflags)?;
 
     if !compile_info.success {
-        println!("{} {} - Compilation failed in {:.2}s", "✗".red(), pid, compile_info.elapsed_seconds);
+        println!(
+            "{} {} - Compilation failed in {:.2}s",
+            "✗".red(),
+            pid,
+            compile_info.elapsed_seconds
+        );
         if !compile_info.stderr.trim().is_empty() {
             println!("\n{}", compile_info.stderr);
         }
@@ -330,7 +335,11 @@ pub fn run(args: JudgeArgs) -> Result<()> {
         storage::append_judge_log(&entry)?;
         std::process::exit(1);
     }
-    eprintln!("{} Compiled in {:.2}s", "✓".green(), compile_info.elapsed_seconds);
+    eprintln!(
+        "{} Compiled in {:.2}s",
+        "✓".green(),
+        compile_info.elapsed_seconds
+    );
 
     let testcases = project_cfg.testcases();
     let samples = collect_samples(&problem_dir, testcases, &source_stem);
@@ -451,9 +460,23 @@ pub fn run(args: JudgeArgs) -> Result<()> {
 
     println!();
     if all_pass {
-        println!("{} {} - {}/{} {} - All tests passed!", "✓".green(), pid, pass_count, test_count, "AC".green());
+        println!(
+            "{} {} - {}/{} {} - All tests passed!",
+            "✓".green(),
+            pid,
+            pass_count,
+            test_count,
+            "AC".green()
+        );
     } else {
-        println!("{} {} - {}/{} {} - Some tests failed", "✗".red(), pid, pass_count, test_count, "FAILED".red());
+        println!(
+            "{} {} - {}/{} {} - Some tests failed",
+            "✗".red(),
+            pid,
+            pass_count,
+            test_count,
+            "FAILED".red()
+        );
     }
 
     if all_pass {

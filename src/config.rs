@@ -25,8 +25,32 @@ fn default_source_file() -> String {
     "main.cpp".to_string()
 }
 
+fn default_problems_dir() -> PathBuf {
+    PathBuf::from("problems")
+}
+
+fn default_training_dir() -> PathBuf {
+    PathBuf::from("training")
+}
+
+fn default_contest_dir() -> PathBuf {
+    PathBuf::from("contest")
+}
+
+fn default_state_dir() -> PathBuf {
+    PathBuf::from(".luogu")
+}
+
+fn default_name_format() -> String {
+    "$(ID)-$(TITLE)".to_string()
+}
+
 #[derive(Debug, Deserialize, Default)]
 struct ConfigFile {
+    #[serde(default)]
+    directories: DirectoriesConfigFile,
+    #[serde(default)]
+    naming: NamingConfigFile,
     #[serde(default)]
     template: TemplateConfig,
     #[serde(default)]
@@ -34,6 +58,98 @@ struct ConfigFile {
     /// Source filename scaffolded for new problems (its stem seeds `$(FNOEXT)`).
     #[serde(default = "default_source_file")]
     source: String,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct DirectoriesConfigFile {
+    problems: Option<PathBuf>,
+    training: Option<PathBuf>,
+    contest: Option<PathBuf>,
+    testcases: Option<PathBuf>,
+    state: Option<PathBuf>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct NamingConfigFile {
+    training: Option<String>,
+    contest: Option<String>,
+    problem: Option<String>,
+}
+
+/// Templates used when naming generated collection directories and links.
+#[derive(Debug, Clone)]
+pub struct NamingConfig {
+    training: String,
+    contest: String,
+    problem: String,
+}
+
+impl Default for NamingConfig {
+    fn default() -> Self {
+        Self {
+            training: default_name_format(),
+            contest: default_name_format(),
+            problem: default_name_format(),
+        }
+    }
+}
+
+impl NamingConfig {
+    pub fn training_name(&self, id: i64, title: &str) -> Result<String> {
+        render_name(&self.training, id, title, "naming.training")
+    }
+
+    pub fn contest_name(&self, id: i64, title: &str) -> Result<String> {
+        render_name(&self.contest, id, title, "naming.contest")
+    }
+
+    pub fn problem_name(&self, id: &str, title: &str) -> Result<String> {
+        render_name(&self.problem, id, title, "naming.problem")
+    }
+}
+
+/// Configurable workspace directory layout.
+#[derive(Debug, Clone)]
+pub struct DirectoriesConfig {
+    problems: PathBuf,
+    training: PathBuf,
+    contest: PathBuf,
+    testcases: PathBuf,
+    state: PathBuf,
+}
+
+impl Default for DirectoriesConfig {
+    fn default() -> Self {
+        Self {
+            problems: default_problems_dir(),
+            training: default_training_dir(),
+            contest: default_contest_dir(),
+            testcases: PathBuf::from(default_testcases_dir()),
+            state: default_state_dir(),
+        }
+    }
+}
+
+impl DirectoriesConfig {
+    pub fn problems(&self) -> &Path {
+        &self.problems
+    }
+
+    pub fn training(&self) -> &Path {
+        &self.training
+    }
+
+    pub fn contest(&self) -> &Path {
+        &self.contest
+    }
+
+    pub fn testcases(&self) -> &Path {
+        &self.testcases
+    }
+
+    pub fn state(&self) -> &Path {
+        &self.state
+    }
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -94,14 +210,20 @@ impl TestcasesConfig {
     /// Regex matching input filenames, capturing `fnoext` and `tcnum`.
     pub fn input_regex(&self) -> Result<Regex> {
         let pattern = format_to_regex(&self.input_format);
-        Regex::new(&pattern)
-            .map_err(|e| anyhow!("invalid testcases input_format {:?}: {e}", self.input_format))
+        Regex::new(&pattern).map_err(|e| {
+            anyhow!(
+                "invalid testcases input_format {:?}: {e}",
+                self.input_format
+            )
+        })
     }
 }
 
 /// Resolved project configuration.
 #[derive(Debug, Clone)]
 pub struct Config {
+    directories: DirectoriesConfig,
+    naming: NamingConfig,
     template: Option<String>,
     testcases: TestcasesConfig,
     source: String,
@@ -110,6 +232,8 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            directories: DirectoriesConfig::default(),
+            naming: NamingConfig::default(),
             template: None,
             testcases: TestcasesConfig::default(),
             source: default_source_file(),
@@ -118,6 +242,16 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Configurable workspace directory layout.
+    pub fn directories(&self) -> &DirectoriesConfig {
+        &self.directories
+    }
+
+    /// Templates used for generated collection directory and link names.
+    pub fn naming(&self) -> &NamingConfig {
+        &self.naming
+    }
+
     /// Initial source code to scaffold for new problems, if configured.
     pub fn template(&self) -> Option<&str> {
         self.template.as_deref()
@@ -140,13 +274,24 @@ fn config_path() -> PathBuf {
 
 fn default_config_text() -> Result<String> {
     let default = serde_json::json!({
+        "directories": {
+            "problems": default_problems_dir(),
+            "training": default_training_dir(),
+            "contest": default_contest_dir(),
+            "testcases": PathBuf::from(default_testcases_dir()),
+            "state": default_state_dir()
+        },
+        "naming": {
+            "training": default_name_format(),
+            "contest": default_name_format(),
+            "problem": default_name_format()
+        },
         "source": default_source_file(),
         "template": {
             "code": "",
             "path": ""
         },
         "testcases": {
-            "directory": default_testcases_dir(),
             "input_format": default_input_format(),
             "output_format": default_output_format()
         }
@@ -167,11 +312,103 @@ pub fn load() -> Result<Config> {
         serde_json::from_str(&text).with_context(|| format!("parse {}", path.display()))?;
 
     let template = resolve_template(&file_cfg.template, &path)?;
+    let mut testcases = file_cfg.testcases;
+    let directories = resolve_directories(file_cfg.directories, testcases.directory());
+    testcases.directory = directories.testcases().to_string_lossy().into_owned();
+    validate_directories(&directories)?;
+    let naming = resolve_naming(file_cfg.naming);
     Ok(Config {
+        directories,
+        naming,
         template,
-        testcases: file_cfg.testcases,
+        testcases,
         source: file_cfg.source,
     })
+}
+
+fn resolve_naming(naming: NamingConfigFile) -> NamingConfig {
+    NamingConfig {
+        training: naming.training.unwrap_or_else(default_name_format),
+        contest: naming.contest.unwrap_or_else(default_name_format),
+        problem: naming.problem.unwrap_or_else(default_name_format),
+    }
+}
+
+fn render_name(template: &str, id: impl ToString, title: &str, field: &str) -> Result<String> {
+    let id = id.to_string();
+    let title = sanitize_path_component(title);
+    let mut output = String::with_capacity(template.len() + id.len() + title.len());
+    let mut rest = template;
+
+    while let Some(start) = rest.find("$(") {
+        output.push_str(&rest[..start]);
+        let after = &rest[start..];
+        let Some(end) = after.find(')') else {
+            return Err(anyhow!("{field} has an unterminated placeholder"));
+        };
+        match &after[2..end] {
+            "ID" => output.push_str(&id),
+            "TITLE" => output.push_str(&title),
+            placeholder => return Err(anyhow!("{field} has unknown placeholder $({placeholder})")),
+        }
+        rest = &after[end + 1..];
+    }
+    output.push_str(rest);
+
+    let path = Path::new(&output);
+    if output.trim().is_empty() || path.components().count() != 1 {
+        return Err(anyhow!(
+            "{field} must render to a single non-empty path component, got {output:?}"
+        ));
+    }
+    Ok(output)
+}
+
+fn sanitize_path_component(value: &str) -> String {
+    let mut sanitized = String::with_capacity(value.len());
+    for ch in value.chars() {
+        if ch.is_control() || matches!(ch, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') {
+            sanitized.push('-');
+        } else {
+            sanitized.push(ch);
+        }
+    }
+    let sanitized = sanitized.trim().trim_end_matches(['.', ' ']);
+    if sanitized.is_empty() {
+        "untitled".to_string()
+    } else {
+        sanitized.to_string()
+    }
+}
+
+fn resolve_directories(
+    directories: DirectoriesConfigFile,
+    legacy_testcases_dir: &str,
+) -> DirectoriesConfig {
+    DirectoriesConfig {
+        problems: directories.problems.unwrap_or_else(default_problems_dir),
+        training: directories.training.unwrap_or_else(default_training_dir),
+        contest: directories.contest.unwrap_or_else(default_contest_dir),
+        testcases: directories
+            .testcases
+            .unwrap_or_else(|| PathBuf::from(legacy_testcases_dir)),
+        state: directories.state.unwrap_or_else(default_state_dir),
+    }
+}
+
+fn validate_directories(directories: &DirectoriesConfig) -> Result<()> {
+    for (name, path) in [
+        ("problems", directories.problems()),
+        ("training", directories.training()),
+        ("contest", directories.contest()),
+        ("testcases", directories.testcases()),
+        ("state", directories.state()),
+    ] {
+        if path.as_os_str().is_empty() {
+            return Err(anyhow!("directories.{name} cannot be empty"));
+        }
+    }
+    Ok(())
 }
 
 fn resolve_template(template: &TemplateConfig, config_path: &Path) -> Result<Option<String>> {
@@ -272,8 +509,8 @@ mod tests {
     fn none_when_empty() {
         let cfg = resolve_template(&tpl(None, None), Path::new("luogu_config.json")).unwrap();
         assert_eq!(cfg, None);
-        let cfg = resolve_template(&tpl(Some(""), Some("")), Path::new("luogu_config.json"))
-            .unwrap();
+        let cfg =
+            resolve_template(&tpl(Some(""), Some("")), Path::new("luogu_config.json")).unwrap();
         assert_eq!(cfg, None);
     }
 
@@ -329,6 +566,26 @@ mod tests {
         assert_eq!(cfg.testcases.directory, "testcases");
         assert_eq!(cfg.testcases.input_format, "$(FNOEXT).$(TCNUM).in");
         assert_eq!(cfg.testcases.output_format, "$(FNOEXT).$(TCNUM).ans");
+        assert_eq!(
+            cfg.directories.problems.as_deref(),
+            Some(Path::new("problems"))
+        );
+        assert_eq!(
+            cfg.directories.training.as_deref(),
+            Some(Path::new("training"))
+        );
+        assert_eq!(
+            cfg.directories.contest.as_deref(),
+            Some(Path::new("contest"))
+        );
+        assert_eq!(
+            cfg.directories.testcases.as_deref(),
+            Some(Path::new("testcases"))
+        );
+        assert_eq!(cfg.directories.state.as_deref(), Some(Path::new(".luogu")));
+        assert_eq!(cfg.naming.training.as_deref(), Some("$(ID)-$(TITLE)"));
+        assert_eq!(cfg.naming.contest.as_deref(), Some("$(ID)-$(TITLE)"));
+        assert_eq!(cfg.naming.problem.as_deref(), Some("$(ID)-$(TITLE)"));
     }
 
     #[test]
@@ -339,11 +596,90 @@ mod tests {
         assert_eq!(cfg.testcases.directory, "testcases");
         assert_eq!(cfg.testcases.input_format, "$(FNOEXT).$(TCNUM).in");
 
-        let cfg: ConfigFile =
-            serde_json::from_str(r#"{"testcases":{"directory":"tc"}}"#).unwrap();
+        let cfg: ConfigFile = serde_json::from_str(r#"{"testcases":{"directory":"tc"}}"#).unwrap();
         assert_eq!(cfg.source, "main.cpp");
         assert_eq!(cfg.testcases.directory, "tc");
         assert_eq!(cfg.testcases.input_format, "$(FNOEXT).$(TCNUM).in");
         assert_eq!(cfg.testcases.output_format, "$(FNOEXT).$(TCNUM).ans");
+    }
+
+    #[test]
+    fn directories_section_overrides_defaults() {
+        let cfg: ConfigFile = serde_json::from_str(
+            r#"{
+                "directories": {
+                    "problems": "src/problem",
+                    "training": "sets/training",
+                    "contest": "sets/contest",
+                    "testcases": "samples",
+                    "state": ".cache/luogu"
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let dirs = resolve_directories(cfg.directories, cfg.testcases.directory());
+
+        assert_eq!(dirs.problems(), Path::new("src/problem"));
+        assert_eq!(dirs.training(), Path::new("sets/training"));
+        assert_eq!(dirs.contest(), Path::new("sets/contest"));
+        assert_eq!(dirs.testcases(), Path::new("samples"));
+        assert_eq!(dirs.state(), Path::new(".cache/luogu"));
+    }
+
+    #[test]
+    fn legacy_testcase_directory_is_still_supported() {
+        let cfg: ConfigFile =
+            serde_json::from_str(r#"{"testcases":{"directory":"legacy-tests"}}"#).unwrap();
+
+        let dirs = resolve_directories(cfg.directories, cfg.testcases.directory());
+
+        assert_eq!(dirs.testcases(), Path::new("legacy-tests"));
+        assert!(validate_directories(&dirs).is_ok());
+    }
+
+    #[test]
+    fn empty_directory_configuration_is_rejected() {
+        let dirs = DirectoriesConfig {
+            problems: PathBuf::new(),
+            ..DirectoriesConfig::default()
+        };
+
+        assert!(validate_directories(&dirs).is_err());
+    }
+
+    #[test]
+    fn naming_templates_include_ids_and_sanitized_titles() {
+        let cfg: ConfigFile = serde_json::from_str(
+            r#"{
+                "naming": {
+                    "training": "$(ID)-$(TITLE)",
+                    "contest": "contest-$(TITLE)-$(ID)",
+                    "problem": "$(ID)-$(TITLE)"
+                }
+            }"#,
+        )
+        .unwrap();
+        let naming = resolve_naming(cfg.naming);
+
+        assert_eq!(
+            naming.training_name(113, "线性表/队列").unwrap(),
+            "113-线性表-队列"
+        );
+        assert_eq!(
+            naming.contest_name(42, "测试:赛").unwrap(),
+            "contest-测试-赛-42"
+        );
+        assert_eq!(naming.problem_name("P1000", "A/B").unwrap(), "P1000-A-B");
+    }
+
+    #[test]
+    fn invalid_naming_templates_are_rejected() {
+        let naming = NamingConfig {
+            training: "nested/$(ID)".to_string(),
+            ..NamingConfig::default()
+        };
+
+        assert!(naming.training_name(1, "test").is_err());
     }
 }

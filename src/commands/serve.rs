@@ -94,7 +94,7 @@ fn html_page() -> &'static str {
 </head>
 <body>
   <h1>Luogu 题库与评测记录</h1>
-  <p class="meta">数据来自 .luogu/problems.json 与 .luogu/judge_log.jsonl</p>
+  <p class="meta">数据来自配置的数据目录</p>
 
   <div class="toolbar">
     <input id="pidFilter" placeholder="按题号过滤，如 P1000" />
@@ -203,7 +203,12 @@ fn html_page() -> &'static str {
 "#
 }
 
-fn write_response(stream: &mut TcpStream, status: &str, content_type: &str, body: &[u8]) -> Result<()> {
+fn write_response(
+    stream: &mut TcpStream,
+    status: &str,
+    content_type: &str,
+    body: &[u8],
+) -> Result<()> {
     let header = format!(
         "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
         body.len()
@@ -226,7 +231,12 @@ fn handle_client(mut stream: TcpStream, history_limit: usize) -> Result<()> {
     let path = parts.next().unwrap_or("/");
 
     if method != "GET" {
-        write_response(&mut stream, "405 Method Not Allowed", "text/plain; charset=utf-8", b"method not allowed")?;
+        write_response(
+            &mut stream,
+            "405 Method Not Allowed",
+            "text/plain; charset=utf-8",
+            b"method not allowed",
+        )?;
         return Ok(());
     }
 
@@ -242,15 +252,30 @@ fn handle_client(mut stream: TcpStream, history_limit: usize) -> Result<()> {
         "/api/problems" => {
             let map = storage::load_problem_map()?;
             let body = serde_json::to_vec(&map)?;
-            write_response(&mut stream, "200 OK", "application/json; charset=utf-8", &body)?;
+            write_response(
+                &mut stream,
+                "200 OK",
+                "application/json; charset=utf-8",
+                &body,
+            )?;
         }
         "/api/history" => {
             let logs = storage::read_judge_logs(history_limit)?;
             let body = serde_json::to_vec(&logs)?;
-            write_response(&mut stream, "200 OK", "application/json; charset=utf-8", &body)?;
+            write_response(
+                &mut stream,
+                "200 OK",
+                "application/json; charset=utf-8",
+                &body,
+            )?;
         }
         _ => {
-            write_response(&mut stream, "404 Not Found", "text/plain; charset=utf-8", b"not found")?;
+            write_response(
+                &mut stream,
+                "404 Not Found",
+                "text/plain; charset=utf-8",
+                b"not found",
+            )?;
         }
     }
 

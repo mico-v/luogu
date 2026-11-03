@@ -1,7 +1,7 @@
 use crate::cli::ContestArgs;
 use crate::commands::training;
 use crate::models::ProblemRecord;
-use crate::{net, storage};
+use crate::{config, net, storage};
 use anyhow::Result;
 use chrono::Utc;
 use colored::Colorize;
@@ -36,9 +36,21 @@ pub fn run(args: ContestArgs) -> Result<()> {
         return list_contests(&args);
     }
 
-    let cid = args.id.ok_or_else(|| anyhow::anyhow!("contest ID required. Use --list to list contests, or provide an ID."))?;
+    let cfg = config::load()?;
+    let base_dir = args
+        .base_dir
+        .as_deref()
+        .unwrap_or_else(|| cfg.directories().problems());
+    storage::migrate_legacy_problem_root(base_dir)?;
+    let cid = args.id.ok_or_else(|| {
+        anyhow::anyhow!("contest ID required. Use --list to list contests, or provide an ID.")
+    })?;
 
-    eprintln!("{} Fetching contest {}...", "🏁".cyan(), cid.to_string().bold());
+    eprintln!(
+        "{} Fetching contest {}...",
+        "🏁".cyan(),
+        cid.to_string().bold()
+    );
 
     let data = net::fetch_contest(cid)?;
     let contest = data.contest;
@@ -81,7 +93,6 @@ pub fn run(args: ContestArgs) -> Result<()> {
         return Ok(());
     }
 
-    let base_dir = &args.base_dir;
     let mut map = storage::load_problem_map()?;
     let mut success = 0usize;
     let mut skipped = 0usize;
@@ -92,7 +103,13 @@ pub fn run(args: ContestArgs) -> Result<()> {
         let problem_path = storage::problem_dir(base_dir, pid);
 
         if problem_path.exists() && !args.force {
-            println!("  {} {} {} {}", "⏭".yellow(), pid.cyan(), title, "(skipped)".yellow());
+            println!(
+                "  {} {} {} {}",
+                "⏭".yellow(),
+                pid.cyan(),
+                title,
+                "(skipped)".yellow()
+            );
             skipped += 1;
             if !map.contains_key(pid) {
                 let record = ProblemRecord {
@@ -129,7 +146,13 @@ pub fn run(args: ContestArgs) -> Result<()> {
                     url: format!("https://www.luogu.com.cn/problem/{}", problem.pid),
                 };
                 map.insert(problem.pid.clone(), record);
-                println!("  {} {} {} {}", "✓".green(), pid.cyan(), title, format!("[{}]", difficulty_label(problem.difficulty)).cyan());
+                println!(
+                    "  {} {} {} {}",
+                    "✓".green(),
+                    pid.cyan(),
+                    title,
+                    format!("[{}]", difficulty_label(problem.difficulty)).cyan()
+                );
                 success += 1;
             }
             Err(e) => {
@@ -138,27 +161,54 @@ pub fn run(args: ContestArgs) -> Result<()> {
         }
     }
 
+    let contest_dir = cfg
+        .directories()
+        .contest()
+        .join(cfg.naming().contest_name(cid, &contest.name)?);
+    let mut prepared = 0usize;
+    for entry in &problems {
+        let problem_path = storage::problem_dir(base_dir, &entry.problem.pid);
+        if !problem_path.exists() {
+            continue;
+        }
+        let link_name = cfg
+            .naming()
+            .problem_name(&entry.problem.pid, &entry.problem.title)?;
+        match training::prepare_collection_files(
+            &problem_path,
+            &contest_dir,
+            &entry.problem.pid,
+            &link_name,
+            args.force,
+        ) {
+            Ok(()) => prepared += 1,
+            Err(e) => eprintln!(
+                "  {} {} contest workspace: {}",
+                "✗".red(),
+                entry.problem.pid.cyan(),
+                e
+            ),
+        }
+    }
+
     storage::save_problem_map(&map)?;
 
     println!();
     println!(
-        "{} {} problems downloaded, {} skipped (total {})",
+        "{} {} problems downloaded, {} skipped, {} contest workspaces (total {})",
         "📊".normal(),
         success.to_string().green(),
         skipped.to_string().yellow(),
+        prepared.to_string().cyan(),
         problems.len().to_string().cyan()
     );
+    println!("{} {}", "🔗".normal(), contest_dir.display());
 
     Ok(())
 }
 
 fn list_contests(args: &ContestArgs) -> Result<()> {
-    let data = net::fetch_contest_list(
-        args.page,
-        args.name.as_deref(),
-        args.method,
-        args.public,
-    )?;
+    let data = net::fetch_contest_list(args.page, args.name.as_deref(), args.method, args.public)?;
 
     let contests = &data.contests.result;
     if contests.is_empty() {
@@ -170,7 +220,11 @@ fn list_contests(args: &ContestArgs) -> Result<()> {
     println!("{} Contests:", "🏁".cyan().bold());
     println!(
         "{}",
-        format!("{:<8} | {:<35} | {:<15} | {:<8} | {:<10}", "ID", "Name", "Time", "Method", "Problems").cyan()
+        format!(
+            "{:<8} | {:<35} | {:<15} | {:<8} | {:<10}",
+            "ID", "Name", "Time", "Method", "Problems"
+        )
+        .cyan()
     );
     println!("{}", "─".repeat(88).cyan());
 

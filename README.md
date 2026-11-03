@@ -21,7 +21,7 @@ luogu fetch https://www.luogu.com.cn/problem/P1000
 ```
 
 常用参数：
-- `--base-dir problems`：题目根目录
+- `--base-dir <PATH>`：临时覆盖配置中的题目根目录
 - `--force`：覆盖已有目录中的生成文件
 
 题单也可以直接交给 `fetch` 批量导入：
@@ -184,8 +184,9 @@ luogu rank --type elo
 - `problems/PID/T.md`：题目描述
 - `problems/PID/testcases/main.N.in` / `main.N.ans`：样例数据（`N` 从 0 开始）
 - `problems/PID/main.cpp`：仅在配置了代码模板时生成；training 导入会创建空文件以保证链接有效
-- `training/PID.cpp`：指向 `problems/PID/<source>` 的平铺符号链接
-- `training/PID.md`：指向 `problems/PID/T.md` 的平铺符号链接
+- `training/<training-id>-<training标题>/<problem-id>-<problem标题>`：指向 `problems/PID` 的目录符号链接
+- `contest/<contest-id>-<contest标题>/<problem-id>-<problem标题>`：比赛导入生成的同类目录符号链接
+- 打开链接目录内的 `main.cpp` 时，CompetiTest 会直接读取目标目录内现有的 `testcases/main.N.in/.ans`
 
 ## 项目配置文件
 
@@ -193,24 +194,45 @@ luogu rank --type elo
 
 ```json
 {
+  "directories": {
+    "problems": "problems",
+    "training": "training",
+    "contest": "contest",
+    "testcases": "testcases",
+    "state": ".luogu"
+  },
+  "naming": {
+    "training": "$(ID)-$(TITLE)",
+    "contest": "$(ID)-$(TITLE)",
+    "problem": "$(ID)-$(TITLE)"
+  },
   "source": "main.cpp",
   "template": {
     "code": "",
     "path": ""
   },
   "testcases": {
-    "directory": "testcases",
     "input_format": "$(FNOEXT).$(TCNUM).in",
     "output_format": "$(FNOEXT).$(TCNUM).ans"
   }
 }
 ```
 
+- `directories.problems`：题目根目录，所有单题、training、contest 的题目原文件都放在这里。
+- `directories.training`：training 平铺链接根目录，实际写入 `<training>/<training-id>/`。
+- `directories.contest`：contest 平铺链接根目录，实际写入 `<contest>/<contest-id>/`。
+- `directories.testcases`：每道题以及比赛/题单工作目录中存放样例的目录名。
+- `directories.state`：元数据和评测日志目录，默认 `.luogu`。
+- 所有目录都可以使用相对路径（相对于运行命令时的工作目录）或绝对路径。
+- `naming.training`：training 集合目录名模板，支持 `$(ID)` 和 `$(TITLE)`。
+- `naming.contest`：contest 集合目录名模板，支持 `$(ID)` 和 `$(TITLE)`。
+- `naming.problem`：training/contest 目录内题目链接名模板，支持 `$(ID)` 和 `$(TITLE)`。
+- 标题中的路径分隔符和文件系统非法字符会替换为 `-`，模板结果必须是单个目录名。
 - `source`：新建题目时生成的源文件名（默认 `main.cpp`），其主名用于样例名里的 `$(FNOEXT)`；`luogu judge` 也会优先查找该文件。
 - `template.code`：内联的初始代码。设置后会在新建题目时写入 `problems/PID/<source>`。
 - `template.path`：初始代码模板文件路径（绝对路径，或相对 `luogu_config.json` 所在目录）。`code` 非空时优先使用 `code`。
 - 两者都为空（默认）时，单题拉取**不生成** `main.cpp`；training 导入会创建空文件作为 `.cpp` 链接目标。
-- `testcases.directory`：样例所在子目录（相对题目目录）。
+- 旧版的 `testcases.directory` 仍兼容；同时配置时以 `directories.testcases` 为准。
 - `testcases.input_format` / `output_format`：样例文件名模板，支持 `$(FNOEXT)`（源文件主名，默认 `main`）与 `$(TCNUM)`（编号，从 0 开始）。
 - 默认取值与 competitest.nvim 一致；`luogu fetch` / `training` / `contest` 按该模板写入，`luogu judge` 按 `input_format` 扫描目录并用 `output_format` 查找期望输出。省略 `testcases` 时使用上面的默认值。
 

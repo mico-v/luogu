@@ -1,11 +1,21 @@
 use crate::cli::SolutionArgs;
-use crate::net;
+use crate::{config, net, storage};
 use anyhow::Result;
 use colored::Colorize;
 use std::fs;
 
 pub fn run(args: SolutionArgs) -> Result<()> {
-    eprintln!("{} Fetching solutions for {}...", "📝".cyan(), args.pid.cyan().bold());
+    let cfg = config::load()?;
+    let base_dir = args
+        .base_dir
+        .as_deref()
+        .unwrap_or_else(|| cfg.directories().problems());
+    storage::migrate_legacy_problem_root(base_dir)?;
+    eprintln!(
+        "{} Fetching solutions for {}...",
+        "📝".cyan(),
+        args.pid.cyan().bold()
+    );
 
     let data = match net::fetch_solutions(&args.pid, args.page) {
         Ok(d) => d,
@@ -58,7 +68,11 @@ pub fn run(args: SolutionArgs) -> Result<()> {
             time.cyan(),
             sol.upvote.to_string().green(),
             sol.replyCount.to_string().yellow(),
-            if sol.status == 1 { "public".green() } else { "hidden".red() }
+            if sol.status == 1 {
+                "public".green()
+            } else {
+                "hidden".red()
+            }
         );
 
         // Show content if requested
@@ -76,11 +90,14 @@ pub fn run(args: SolutionArgs) -> Result<()> {
 
             // Save if requested
             if args.save {
-                let problem_path = args.base_dir.join(&args.pid);
+                let problem_path = storage::problem_dir(base_dir, &args.pid);
                 fs::create_dir_all(&problem_path)?;
                 let file_path = problem_path.join(format!("solution_{}.md", idx));
                 fs::write(&file_path, content)?;
-                println!("     💾 Saved to {}", file_path.display().to_string().cyan());
+                println!(
+                    "     💾 Saved to {}",
+                    file_path.display().to_string().cyan()
+                );
             }
         }
     }
@@ -89,8 +106,14 @@ pub fn run(args: SolutionArgs) -> Result<()> {
     if total > args.page * 20 {
         println!("{} Use --page {} to see more", "💡".cyan(), args.page + 1);
     }
-    println!("{} Use --index <n> to view full solution content", "💡".cyan());
-    println!("{} Use --save to save solutions to problem directory", "💡".cyan());
+    println!(
+        "{} Use --index <n> to view full solution content",
+        "💡".cyan()
+    );
+    println!(
+        "{} Use --save to save solutions to problem directory",
+        "💡".cyan()
+    );
 
     Ok(())
 }

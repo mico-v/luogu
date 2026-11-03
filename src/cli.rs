@@ -45,9 +45,9 @@ pub struct FetchArgs {
     /// Problem or training ID/URL, such as P1000 or /training/100.
     #[arg(value_name = "TARGET")]
     pub pid: String,
-    /// Root folder to store problems.
-    #[arg(long, default_value = "problems")]
-    pub base_dir: PathBuf,
+    /// Override the configured problems directory.
+    #[arg(long)]
+    pub base_dir: Option<PathBuf>,
     /// Overwrite existing problem directory files.
     #[arg(long)]
     pub force: bool,
@@ -57,9 +57,9 @@ pub struct FetchArgs {
 pub struct JudgeArgs {
     /// Problem ID to judge.
     pub pid: String,
-    /// Root folder containing problem directories.
-    #[arg(long, default_value = "problems")]
-    pub base_dir: PathBuf,
+    /// Override the configured problems directory.
+    #[arg(long)]
+    pub base_dir: Option<PathBuf>,
     /// C++ source filename in problem directory (default: main.cpp/main.cc/main.cxx).
     #[arg(long)]
     pub source: Option<String>,
@@ -131,9 +131,9 @@ pub struct SearchArgs {
 pub struct TrainingArgs {
     /// Training set ID.
     pub id: Option<i64>,
-    /// Root folder to store problems.
-    #[arg(long, default_value = "problems")]
-    pub base_dir: PathBuf,
+    /// Override the configured problems directory.
+    #[arg(long)]
+    pub base_dir: Option<PathBuf>,
     /// Overwrite existing problem files.
     #[arg(long)]
     pub force: bool,
@@ -152,9 +152,9 @@ pub struct TrainingArgs {
 pub struct ContestArgs {
     /// Contest ID.
     pub id: Option<i64>,
-    /// Root folder to store problems.
-    #[arg(long, default_value = "problems")]
-    pub base_dir: PathBuf,
+    /// Override the configured problems directory.
+    #[arg(long)]
+    pub base_dir: Option<PathBuf>,
     /// Overwrite existing problem files.
     #[arg(long)]
     pub force: bool,
@@ -197,9 +197,9 @@ pub struct SolutionArgs {
     /// Save solutions to problem directory.
     #[arg(short, long)]
     pub save: bool,
-    /// Root folder containing problem directories.
-    #[arg(long, default_value = "problems")]
-    pub base_dir: PathBuf,
+    /// Override the configured problems directory.
+    #[arg(long)]
+    pub base_dir: Option<PathBuf>,
     /// Show full solution content.
     #[arg(short, long)]
     pub full: bool,
@@ -266,23 +266,20 @@ mod tests {
     }
 
     #[test]
-    fn problem_commands_default_to_problems_directory() {
+    fn problem_directory_is_a_cli_override() {
         let cli = Cli::try_parse_from(["luogu", "fetch", "P1000"]).unwrap();
         match cli.command {
-            Commands::Fetch(args) => assert_eq!(args.base_dir, PathBuf::from("problems")),
+            Commands::Fetch(args) => assert_eq!(args.base_dir, None),
             _ => panic!("expected fetch command"),
         }
 
-        let cli = Cli::try_parse_from(["luogu", "training", "100"]).unwrap();
+        let cli =
+            Cli::try_parse_from(["luogu", "training", "100", "--base-dir", "custom"]).unwrap();
         match cli.command {
-            Commands::Training(args) => assert_eq!(args.base_dir, PathBuf::from("problems")),
+            Commands::Training(args) => {
+                assert_eq!(args.base_dir, Some(PathBuf::from("custom")))
+            }
             _ => panic!("expected training command"),
-        }
-
-        let cli = Cli::try_parse_from(["luogu", "judge", "P1000"]).unwrap();
-        match cli.command {
-            Commands::Judge(args) => assert_eq!(args.base_dir, PathBuf::from("problems")),
-            _ => panic!("expected judge command"),
         }
     }
 }

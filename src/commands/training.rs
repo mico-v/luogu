@@ -1,6 +1,6 @@
 use crate::cli::TrainingArgs;
 use crate::models::ProblemRecord;
-use crate::{net, storage};
+use crate::{config, net, storage};
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use colored::Colorize;
@@ -27,20 +27,31 @@ pub fn run(args: TrainingArgs) -> Result<()> {
         return list_trainings(&args);
     }
 
+    let cfg = config::load()?;
+    let base_dir = args
+        .base_dir
+        .as_deref()
+        .unwrap_or_else(|| cfg.directories().problems());
+    storage::migrate_legacy_problem_root(base_dir)?;
     let tid = args.id.ok_or_else(|| {
         anyhow::anyhow!("training ID required. Use --list to list training sets, or provide an ID.")
     })?;
-    fetch_training_set(tid, &args.base_dir, args.force)
+    fetch_training_set(tid, base_dir, &cfg, args.force)
 }
 
-pub fn fetch_training_set(tid: i64, base_dir: &Path, force: bool) -> Result<()> {
-    fetch_training_set_to(tid, base_dir, Path::new("training"), force)
+pub fn fetch_training_set(
+    tid: i64,
+    base_dir: &Path,
+    cfg: &config::Config,
+    force: bool,
+) -> Result<()> {
+    fetch_training_set_to(tid, base_dir, cfg, force)
 }
 
 fn fetch_training_set_to(
     tid: i64,
     base_dir: &Path,
-    training_dir: &Path,
+    cfg: &config::Config,
     force: bool,
 ) -> Result<()> {
     eprintln!(
@@ -52,6 +63,10 @@ fn fetch_training_set_to(
     let data = net::fetch_training(tid)?;
     let training = data.training;
     let problems = &training.problems;
+    let training_dir = cfg
+        .directories()
+        .training()
+        .join(cfg.naming().training_name(tid, &training.name)?);
 
     println!();
     println!(
@@ -141,16 +156,22 @@ fn fetch_training_set_to(
         }
     }
 
-    let source_file = crate::config::load()?.source().to_string();
-    let mut linked = 0usize;
+    let mut prepared = 0usize;
     for entry in problems {
         let problem_path = storage::problem_dir(base_dir, &entry.pid);
         if !problem_path.exists() {
             continue;
         }
-        match create_training_links(&problem_path, training_dir, &entry.pid, &source_file, force) {
-            Ok(()) => linked += 1,
-            Err(e) => eprintln!("  {} {} training links: {}", "✗".red(), entry.pid.cyan(), e),
+        let link_name = cfg.naming().problem_name(&entry.pid, &entry.title)?;
+        match prepare_collection_files(&problem_path, &training_dir, &entry.pid, &link_name, force)
+        {
+            Ok(()) => prepared += 1,
+            Err(e) => eprintln!(
+                "  {} {} training workspace: {}",
+                "✗".red(),
+                entry.pid.cyan(),
+                e
+            ),
         }
     }
 
@@ -158,11 +179,11 @@ fn fetch_training_set_to(
 
     println!();
     println!(
-        "{} {} problems downloaded, {} skipped, {} training links (total {})",
+        "{} {} problems downloaded, {} skipped, {} training workspaces (total {})",
         "📊".normal(),
         success.to_string().green(),
         skipped.to_string().yellow(),
-        linked.to_string().cyan(),
+        prepared.to_string().cyan(),
         problems.len().to_string().cyan()
     );
     println!("{} {}", "🔗".normal(), training_dir.display());
@@ -256,39 +277,51 @@ pub fn save_problem_files(
     Ok(())
 }
 
-fn create_training_links(
+pub(crate) fn prepare_collection_files(
     problem_path: &Path,
-    training_dir: &Path,
+    collection_dir: &Path,
     pid: &str,
-    source_file: &str,
+    link_name: &str,
     force: bool,
 ) -> Result<()> {
-    fs::create_dir_all(training_dir)
-        .with_context(|| format!("create {}", training_dir.display()))?;
+    fs::create_dir_all(collection_dir)
+        .with_context(|| format!("create {}", collection_dir.display()))?;
 
-    let source_path = problem_path.join(source_file);
-    if !source_path.exists() {
-        if let Some(parent) = source_path.parent() {
-            fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
+    for legacy_name in [
+        format!("{pid}.cpp"),
+        format!("{pid}.md"),
+        format!("{pid}.testcases"),
+    ] {
+        let legacy_path = collection_dir.join(legacy_name);
+        if fs::symlink_metadata(&legacy_path)
+            .map(|metadata| metadata.file_type().is_symlink())
+            .unwrap_or(false)
+        {
+            fs::remove_file(&legacy_path).with_context(|| {
+                format!("remove legacy collection link {}", legacy_path.display())
+            })?;
         }
-        fs::write(&source_path, b"")
-            .with_context(|| format!("create training source {}", source_path.display()))?;
     }
 
-    create_relative_symlink(
-        &source_path,
-        &training_dir.join(format!("{pid}.cpp")),
-        force,
-    )?;
-    create_relative_symlink(
-        &problem_path.join("T.md"),
-        &training_dir.join(format!("{pid}.md")),
-        force,
-    )?;
-    Ok(())
+    if link_name != pid {
+        let previous_link = collection_dir.join(pid);
+        if fs::symlink_metadata(&previous_link)
+            .map(|metadata| metadata.file_type().is_symlink())
+            .unwrap_or(false)
+        {
+            fs::remove_file(&previous_link).with_context(|| {
+                format!(
+                    "remove previous collection link {}",
+                    previous_link.display()
+                )
+            })?;
+        }
+    }
+
+    create_relative_symlink(problem_path, &collection_dir.join(link_name), true, force)
 }
 
-fn create_relative_symlink(target: &Path, link: &Path, force: bool) -> Result<()> {
+fn create_relative_symlink(target: &Path, link: &Path, is_dir: bool, force: bool) -> Result<()> {
     let target_abs = absolute_link_target(target)?;
     let link_parent = link
         .parent()
@@ -320,7 +353,7 @@ fn create_relative_symlink(target: &Path, link: &Path, force: bool) -> Result<()
         remove_link(link)?;
     }
 
-    create_symlink(&relative_target, link)
+    create_symlink(&relative_target, link, is_dir)
         .with_context(|| format!("link {} -> {}", link.display(), relative_target.display()))
 }
 
@@ -366,13 +399,17 @@ fn remove_link(path: &Path) -> Result<()> {
 }
 
 #[cfg(unix)]
-fn create_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
+fn create_symlink(target: &Path, link: &Path, _is_dir: bool) -> std::io::Result<()> {
     std::os::unix::fs::symlink(target, link)
 }
 
 #[cfg(windows)]
-fn create_symlink(target: &Path, link: &Path) -> std::io::Result<()> {
-    std::os::windows::fs::symlink_file(target, link)
+fn create_symlink(target: &Path, link: &Path, is_dir: bool) -> std::io::Result<()> {
+    if is_dir {
+        std::os::windows::fs::symlink_dir(target, link)
+    } else {
+        std::os::windows::fs::symlink_file(target, link)
+    }
 }
 
 #[cfg(test)]
@@ -390,47 +427,66 @@ mod tests {
     }
 
     #[test]
-    fn creates_flat_relative_training_links() {
+    fn creates_problem_directory_link_for_collection() {
         let root = temp_dir("links");
         let problems = root.join("problems");
-        let training = root.join("training");
+        let training = root.join("training/100");
         let problem = problems.join("P1000");
         fs::create_dir_all(&problem).unwrap();
         fs::write(problem.join("main.cpp"), "// solution\n").unwrap();
         fs::write(problem.join("T.md"), "# Problem\n").unwrap();
+        fs::create_dir_all(problem.join("testcases")).unwrap();
+        fs::write(problem.join("testcases/main.0.in"), "1 2\n").unwrap();
+        fs::write(problem.join("testcases/main.0.ans"), "3\n").unwrap();
 
-        create_training_links(&problem, &training, "P1000", "main.cpp", false).unwrap();
+        prepare_collection_files(&problem, &training, "P1000", "P1000-测试题目", false).unwrap();
 
-        let cpp_link = training.join("P1000.cpp");
-        let md_link = training.join("P1000.md");
+        let problem_link = training.join("P1000-测试题目");
         assert_eq!(
-            fs::read_link(&cpp_link).unwrap(),
-            PathBuf::from("../problems/P1000/main.cpp")
+            fs::read_link(&problem_link).unwrap(),
+            PathBuf::from("../../problems/P1000")
+        );
+        assert!(problem_link.is_dir());
+        assert_eq!(
+            fs::read_to_string(problem_link.join("main.cpp")).unwrap(),
+            "// solution\n"
         );
         assert_eq!(
-            fs::read_link(&md_link).unwrap(),
-            PathBuf::from("../problems/P1000/T.md")
+            fs::read_to_string(problem_link.join("T.md")).unwrap(),
+            "# Problem\n"
         );
-        assert_eq!(fs::read_to_string(cpp_link).unwrap(), "// solution\n");
-        assert_eq!(fs::read_to_string(md_link).unwrap(), "# Problem\n");
+        assert_eq!(
+            fs::read_to_string(problem_link.join("testcases/main.0.in")).unwrap(),
+            "1 2\n"
+        );
+        assert!(!training.join("P1000").exists());
+        assert!(!training.join("P1000-测试题目.cpp").exists());
+        assert!(!training.join("P1000-测试题目.md").exists());
+        assert!(!training.join("P1000-测试题目.testcases").exists());
 
         // Running the same import again is idempotent without --force.
-        create_training_links(&problem, &training, "P1000", "main.cpp", false).unwrap();
+        prepare_collection_files(&problem, &training, "P1000", "P1000-测试题目", false).unwrap();
         fs::remove_dir_all(root).ok();
     }
 
     #[test]
-    fn training_import_creates_a_source_target_when_template_is_empty() {
+    fn collection_link_keeps_testcases_in_the_problem_directory() {
         let root = temp_dir("source");
         let problem = root.join("problems/P1000");
-        let training = root.join("training");
+        let training = root.join("training/100");
         fs::create_dir_all(&problem).unwrap();
         fs::write(problem.join("T.md"), "# Problem\n").unwrap();
+        fs::create_dir_all(problem.join("testcases")).unwrap();
+        fs::write(problem.join("testcases/main.0.in"), "1 2\n").unwrap();
+        fs::write(problem.join("testcases/main.0.ans"), "3\n").unwrap();
 
-        create_training_links(&problem, &training, "P1000", "main.cpp", false).unwrap();
+        prepare_collection_files(&problem, &training, "P1000", "P1000-测试题目", false).unwrap();
 
-        assert!(problem.join("main.cpp").is_file());
-        assert_eq!(fs::read_to_string(training.join("P1000.cpp")).unwrap(), "");
+        assert!(!training.join("testcases").exists());
+        assert_eq!(
+            fs::read_to_string(training.join("P1000-测试题目/testcases/main.0.ans")).unwrap(),
+            "3\n"
+        );
         fs::remove_dir_all(root).ok();
     }
 
